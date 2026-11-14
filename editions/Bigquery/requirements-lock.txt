@@ -488,9 +488,9 @@ google-auth-oauthlib==1.5.0 \
     # via
     #   pandas-gbq
     #   pydata-google-auth
-google-cloud-aiplatform==1.148.1 \
-    --hash=sha256:035101e2d8e65c6a706cc3930b2452de7ddcbde50dd130320fcea0d8b03b0c5a \
-    --hash=sha256:75d605fba34e68714bd08e1e482755d0a6e3ae972805f809d088e686c30879e7
+google-cloud-aiplatform==2.8.0 \
+    --hash=sha256:3f589660f54e0b4030630440d24733b0ec5c7a4e9ce799cc4f38c13736a60f6f \
+    --hash=sha256:db2e29fffbe725719b47b286f142cc75c6c7e7b3535202732422aefab7f3554f
     # via dbt-bigquery
 google-cloud-bigquery==3.47.0 \
     --hash=sha256:4e42781c3aa7acfc1d3a91ac4052aafcbc05288a4cc1796550f4f94cb9ee3aba \

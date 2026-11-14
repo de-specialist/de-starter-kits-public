@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "tables": {
+    "customers": [
+      {"source": "customer_number", "target": "customer_id", "cast": "string"},
+      {"source": "customer_created", "target": "created_at", "cast": "timestamp"},
+      {"source": "country_name", "target": "country", "cast": "string"}
+    ],
+    "products": [
+      {"source": "sku", "target": "product_id", "cast": "string"},
+      {"source": "product_title", "target": "product_name", "cast": "string"},
+      {"source": "product_group", "target": "category", "cast": "string"}
+    ],
+    "orders": [
+      {"source": "order_number", "target": "order_id", "cast": "string"},
+      {"source": "buyer_id", "target": "customer_id", "cast": "string"},
+      {"source": "status", "target": "order_status", "cast": "string"},
+      {"source": "purchase_date", "target": "order_date", "cast": "date"},
+      {"source": "modified_at", "target": "updated_at", "cast": "timestamp"}
+    ],
+    "order_items": [
+      {"source": "line_id", "target": "order_item_id", "cast": "string"},
+      {"source": "order_number", "target": "order_id", "cast": "string"},
+      {"source": "sku", "target": "product_id", "cast": "string"},
+      {"source": "units", "target": "quantity", "cast": "integer"},
+      {"source": "item_price", "target": "unit_price", "cast": "numeric"}
+    ]
+  }
+}

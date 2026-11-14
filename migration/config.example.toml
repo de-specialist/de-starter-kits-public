@@ -1,0 +1,13 @@
+[runtime]
+log_level = "WARNING"
+# Opt out of dlt anonymous usage telemetry for this project.
+dlthub_telemetry = false
+
+[destination.bigquery]
+location = "US"
+
+[destination.snowflake]
+keep_staged_files = false
+
+# Keep credentials in environment variables or migration/.dlt/secrets.toml.
+# Do not put database URLs, passwords, tokens, or private keys in this file.

@@ -1,0 +1,11 @@
+# Local environment inputs and Terraform state must remain private.
+*.tfvars
+*.tfvars.json
+*.tfstate
+*.tfstate.*
+*.tfplan
+*.plan
+.terraform/
+terraform.tfstate.d/
+crash.log
+crash.*.log

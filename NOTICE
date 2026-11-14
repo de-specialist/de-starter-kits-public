@@ -1,0 +1,39 @@
+DE Starter Kits
+Copyright (c) 2026 the owner of the htiwari-dev/de-starter-kits repository.
+Licensed under the terms in LICENSE.
+
+Example data
+------------
+
+BigQuery edition: TheLook eCommerce
+  The BigQuery edition's SQL queries Google's public BigQuery dataset
+  `bigquery-public-data.thelook_ecommerce` ("theLook eCommerce"), which is
+  described in third-party summaries of its Google Cloud Marketplace listing
+  as a fictitious online clothing retailer created by the Looker team, with
+  synthetic contents. The copyright holder has not read the
+  listing's terms directly; see docs/decisions/0001-license-and-data-terms.md.
+  Source: Google Cloud Public Datasets,
+  https://console.cloud.google.com/marketplace/product/bigquery-public-data/thelook-ecommerce
+  No rows from this dataset are included in this repository or its edition
+  bundles. Queries run in, and are billed to, the user's own Google Cloud
+  project under that user's Google Cloud terms and any terms on the dataset's
+  listing, which each user must review. Google provides the Public Dataset
+  Program without an SLA.
+
+  Looker, Google, and BigQuery are trademarks of Google LLC. "TheLook" is a
+  name used by Google/Looker for this dataset. This Kit is not affiliated
+  with, sponsored by, or endorsed by Google or Looker.
+
+Snowflake edition and migration examples: synthetic data
+  `editions/Snowflake/kit/seeds/*.csv` and `migration/examples/` contain
+  synthetic records written for this repository (for example, placeholder
+  names such as "Ada Example"). They describe no real person, customer, or
+  business and are covered by LICENSE.
+
+Third-party software
+--------------------
+
+The Kit does not bundle third-party packages. dbt Core, the dbt adapters,
+dlt, Terraform providers, MkDocs Material, and other dependencies are
+installed by the user from each component's requirements or lock file and
+remain under their own licences.

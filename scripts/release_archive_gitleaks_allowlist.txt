@@ -1,0 +1,12 @@
+# Approved Gitleaks configuration files inside edition release archives.
+#
+# Release validation fails if an archive contains a .gitleaks.toml or
+# .gitleaksignore that is not listed here. The archive scan never uses these
+# files (it always uses scripts/release_archive_gitleaks.toml), but shipping
+# one still needs an explicit, reviewed decision: a user who runs Gitleaks
+# inside an extracted edition would pick up an approved root-level file.
+#
+# One path per line, relative to the archive's top-level directory and
+# including it, for example:
+#   de-starter-kit-bigquery/examples/.gitleaksignore
+# Blank lines and lines starting with # are ignored.

@@ -1,0 +1,77 @@
+name: Repository script tests
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    paths:
+      - 'scripts/**'
+      - 'migration/*.py'
+      - 'migration/**/*.py'
+      - 'migration/examples/**'
+      - 'migration/mappings/**'
+      - 'migration/requirements.txt'
+      - 'migration/requirements-lock.txt'
+      - 'migration/tests-requirements.txt'
+      - 'migration/tests-requirements-lock.txt'
+      - 'editions/Bigquery/models/**'
+      - 'editions/Bigquery/models/migration/**'
+      - 'editions/Snowflake/kit/models/**'
+      - 'editions/Snowflake/kit/seeds/**'
+      - 'editions/Snowflake/kit/models/migration/**'
+      - 'editions/Bigquery/.ci/profiles.yml'
+      - 'editions/Snowflake/kit/.ci/profiles.yml'
+      - 'editions/Snowflake/kit/profiles.example.yml'
+      - 'editions/Snowflake/kit/tests/**'
+      - 'editions/Snowflake/docs/**'
+      - 'docs/first-run.md'
+      - 'editions/Bigquery/infra/terraform/**'
+      - 'editions/Snowflake/infra/terraform/**'
+      - '.github/workflows/dbt-bigquery-ci.yml'
+      - '.github/workflows/dbt-snowflake-ci.yml'
+      - '.github/dependabot.yml'
+      - '.github/workflows/repository-scripts-ci.yml'
+      - '.github/workflows/privacy-guard.yml'
+      - '.github/workflows/docs-site.yml'
+      - '.github/privacy-guard.toml'
+      - 'website/docs-visibility.toml'
+      - '.github/actions/locked-venv/**'
+      - 'LICENSE'
+      - 'docs/pilot-release-runbook.md'
+      - 'website/mkdocs.yml'
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  script-tests:
+    if: ${{ !github.event.pull_request.draft }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7
+        with:
+          python-version: '3.11'
+      - name: Restore cached migration-tests venv
+        id: venv
+        uses: ./.github/actions/locked-venv
+        with:
+          name: migration-tests
+          lock: migration/tests-requirements-lock.txt
+      - name: Install hash-locked offline migration test dependencies
+        if: steps.venv.outputs.cache-hit != 'true'
+        run: python -m pip install --disable-pip-version-check --require-hashes -r migration/tests-requirements-lock.txt
+      # migration/tests runs in migration-offline-ci.yml so it runs once per PR.
+      - name: Run offline repository script tests
+        run: CI=true python -m unittest discover -s scripts/tests -v
+      - name: Check migration dependency lock
+        run: python scripts/check_dependency_lock.py migration/requirements.txt migration/requirements-lock.txt
+      - name: Check migration test dependency lock
+        run: python scripts/check_dependency_lock.py migration/tests-requirements.txt migration/tests-requirements-lock.txt

@@ -1,0 +1,59 @@
+name: Release archive validation
+
+# Superseded branch and pull request runs cancel; tag (release) runs never do.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ !startsWith(github.ref, 'refs/tags/') }}
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    paths:
+      - 'editions/**'
+      - 'LICENSE'
+      - 'NOTICE'
+      - 'SUPPORT.md'
+      - '.gitignore'
+      - 'scripts/package_edition.py'
+      - 'scripts/credential_safety.py'
+      - 'scripts/check_release_archive_paths.py'
+      - 'scripts/first_run_preflight.py'
+      - 'scripts/terraform_lifecycle.sh'
+      - 'scripts/validate_release_archives.sh'
+      - 'scripts/release_archive_gitleaks.toml'
+      - 'scripts/release_archive_gitleaks_allowlist.txt'
+      - '.github/workflows/release-archive-validation.yml'
+  push:
+    branches: [main]
+    tags: ['v*']
+    paths:
+      - 'editions/**'
+      - 'LICENSE'
+      - 'NOTICE'
+      - 'SUPPORT.md'
+      - '.gitignore'
+      - 'scripts/package_edition.py'
+      - 'scripts/credential_safety.py'
+      - 'scripts/check_release_archive_paths.py'
+      - 'scripts/first_run_preflight.py'
+      - 'scripts/terraform_lifecycle.sh'
+      - 'scripts/validate_release_archives.sh'
+      - 'scripts/release_archive_gitleaks.toml'
+      - 'scripts/release_archive_gitleaks_allowlist.txt'
+      - '.github/workflows/release-archive-validation.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-audit:
+    if: ${{ !github.event.pull_request.draft }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - name: Build and verify both edition archives
+        run: scripts/validate_release_archives.sh

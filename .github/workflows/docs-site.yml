@@ -1,0 +1,158 @@
+name: Documentation site
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+on:
+  # Pull requests rebuild the site only when a published or dbt-docs input
+  # changes; edition infra, CI and dbt singular-test changes are validated by
+  # their own workflows. Pushes to main keep the broad filter for the deploy.
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    paths:
+      - 'docs/**'
+      - 'CONTRIBUTING.md'
+      - 'migration/README.md'
+      - 'migration/mappings/**'
+      - 'website/**'
+      - 'editions/*/README.md'
+      - 'editions/*/docs/**'
+      - 'editions/*/infra/terraform/README.md'
+      - 'editions/*/requirements-lock.txt'
+      - 'editions/Bigquery/dbt_project.yml'
+      - 'editions/Bigquery/.ci/profiles.yml'
+      - 'editions/Bigquery/models/**'
+      - 'editions/Bigquery/macros/**'
+      - 'editions/Bigquery/seeds/**'
+      - 'editions/Bigquery/snapshots/**'
+      - 'editions/Bigquery/analyses/**'
+      - 'editions/Snowflake/kit/dbt_project.yml'
+      - 'editions/Snowflake/kit/.ci/profiles.yml'
+      - 'editions/Snowflake/kit/models/**'
+      - 'editions/Snowflake/kit/macros/**'
+      - 'editions/Snowflake/kit/seeds/**'
+      - 'editions/Snowflake/kit/snapshots/**'
+      - 'editions/Snowflake/kit/analyses/**'
+      - 'scripts/build_docs_site.sh'
+      - 'scripts/check_site_links.py'
+      - 'scripts/docs_visibility.py'
+      - 'README.md'
+      - 'CHANGELOG.md'
+      - 'LICENSE'
+      - 'NOTICE'
+      - 'SUPPORT.md'
+      - 'SECURITY.md'
+      - '.github/workflows/docs-site.yml'
+      - '.github/actions/locked-venv/**'
+  push:
+    branches: [main]
+    paths:
+      - 'docs/**'
+      - 'CONTRIBUTING.md'
+      - 'migration/README.md'
+      - 'migration/mappings/**'
+      - 'website/**'
+      - 'editions/**'
+      - 'scripts/build_docs_site.sh'
+      - 'scripts/check_site_links.py'
+      - 'scripts/docs_visibility.py'
+      - 'README.md'
+      - 'CHANGELOG.md'
+      - 'LICENSE'
+      - 'NOTICE'
+      - 'SUPPORT.md'
+      - 'SECURITY.md'
+      - '.github/workflows/docs-site.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    if: ${{ !github.event.pull_request.draft }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      BQ_PROJECT: ci-placeholder
+      WEBSITE_VENV: ${{ github.workspace }}/.ci-venv/website
+      DBT_BIGQUERY_VENV: ${{ github.workspace }}/.ci-venv/dbt-bigquery
+      DBT_SNOWFLAKE_VENV: ${{ github.workspace }}/.ci-venv/dbt-snowflake
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 2
+      # Pull requests that change no dbt docs input (dbt project, profile,
+      # models, macros, seeds, snapshots, analyses, YAML, edition locks, this
+      # build) skip dbt docs: no dbt venv restore, parse or docs generate.
+      # HEAD^1 is the base side of the pull request merge commit.
+      - name: Detect dbt docs inputs
+        id: dbt
+        run: |
+          set -euo pipefail
+          if [[ "$GITHUB_EVENT_NAME" != pull_request ]]; then
+            echo 'docs=generate' >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          changed="$(git diff --name-only --no-renames HEAD^1 HEAD)"
+          if grep -qE '^editions/(Bigquery|Snowflake/kit)/(dbt_project\.yml|packages\.yml|dependencies\.yml|\.ci/profiles\.yml|(models|macros|seeds|snapshots|analyses)/)|^editions/[^/]+/requirements-lock\.txt$|^scripts/build_docs_site\.sh$|^\.github/workflows/docs-site\.yml$|^\.github/actions/locked-venv/' <<<"$changed"; then
+            echo 'docs=generate' >> "$GITHUB_OUTPUT"
+          else
+            echo 'docs=skip' >> "$GITHUB_OUTPUT"
+            echo '::notice::No dbt docs input changed; skipping dbt docs generation.'
+          fi
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7
+        with:
+          python-version: '3.11'
+      - name: Check website requirements against the lock
+        run: python scripts/check_dependency_lock.py website/requirements.txt website/requirements-lock.txt
+      # On a miss the build script installs website/requirements-lock.txt with --require-hashes.
+      - name: Restore cached website venv
+        uses: ./.github/actions/locked-venv
+        with:
+          name: website
+          lock: website/requirements-lock.txt
+          activate: 'false'
+      # On a miss the build script installs editions/Bigquery/requirements-lock.txt with --require-hashes.
+      - name: Restore cached dbt-bigquery venv
+        if: steps.dbt.outputs.docs == 'generate'
+        uses: ./.github/actions/locked-venv
+        with:
+          name: dbt-bigquery
+          lock: editions/Bigquery/requirements-lock.txt
+          activate: 'false'
+      # On a miss the build script installs editions/Snowflake/requirements-lock.txt with --require-hashes.
+      - name: Restore cached dbt-snowflake venv
+        if: steps.dbt.outputs.docs == 'generate'
+        uses: ./.github/actions/locked-venv
+        with:
+          name: dbt-snowflake
+          lock: editions/Snowflake/requirements-lock.txt
+          activate: 'false'
+      - name: Build documentation site
+        env:
+          DBT_DOCS: ${{ steps.dbt.outputs.docs }}
+        run: |
+          chmod +x scripts/build_docs_site.sh
+          ./scripts/build_docs_site.sh
+      - name: Spot-check published tree for secrets-adjacent filenames
+        run: |
+          if find website/site -type f \( -name 'profiles.yml' -o -name '.env' -o -name '.env.*' -o -name '*.tfvars' \) | grep -q .; then
+            echo 'Refusing to publish secrets-adjacent files in the docs site' >&2
+            find website/site -type f \( -name 'profiles.yml' -o -name '.env' -o -name '.env.*' -o -name '*.tfvars' \) >&2
+            exit 1
+          fi
+      # Backstop: build_docs_site.sh already skips private pages. This re-checks the
+      # built tree against website/docs-visibility.toml and page front matter.
+      - name: Check internal planning pages are not published
+        run: python scripts/docs_visibility.py check-site website/site
+      - name: Check internal links in the built site
+        run: python scripts/check_site_links.py website/site
+      - name: Upload reviewed documentation artifact
+        if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+        # Store only the credential-free generated documentation.
+        uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+        with:
+          name: docs-site
+          path: website/site

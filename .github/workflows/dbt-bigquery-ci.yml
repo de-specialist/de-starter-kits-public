@@ -1,0 +1,48 @@
+name: dbt BigQuery CI
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    paths:
+      - 'editions/Bigquery/**'
+      - '.github/workflows/dbt-bigquery-ci.yml'
+      - '.github/actions/locked-venv/**'
+      - 'scripts/check_dependency_lock.py'
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  parse:
+    if: ${{ !github.event.pull_request.draft }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      BQ_PROJECT: ci-placeholder
+    permissions:
+      contents: read
+    defaults:
+      run:
+        working-directory: editions/Bigquery
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7
+        with:
+          python-version: '3.11'
+      - name: Check direct requirements against the lock
+        run: python ../../scripts/check_dependency_lock.py requirements.txt requirements-lock.txt
+      - name: Restore cached dbt-bigquery venv
+        id: venv
+        uses: ./.github/actions/locked-venv
+        with:
+          name: dbt-bigquery
+          lock: editions/Bigquery/requirements-lock.txt
+      - if: steps.venv.outputs.cache-hit != 'true'
+        run: python -m pip install --require-hashes -r requirements-lock.txt
+      - run: dbt parse --profiles-dir .ci
+      - name: Parse optional migration models without warehouse access
+        run: "dbt parse --profiles-dir .ci --target migration --vars '{enable_migration_models: true}'"

@@ -1,0 +1,60 @@
+version: 2
+
+models:
+  - name: stg_customers
+    description: Cleaned customer records from the example seed. Replace the seed with a governed source in your deployment.
+    columns:
+      - name: customer_id
+        description: Stable customer identifier.
+        data_tests: [not_null, unique]
+      - name: customer_name
+        data_tests: [not_null]
+      - name: country
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ['AU', 'NZ']
+
+  - name: stg_orders
+    description: Cleaned order records from the example seed.
+    columns:
+      - name: order_id
+        data_tests: [not_null, unique]
+      - name: customer_id
+        data_tests: [not_null]
+      - name: status
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ['completed', 'cancelled']
+      - name: source_updated_at
+        description: Source change timestamp (UTC, no time zone). The synthetic seed deliberately includes one null value to exercise the incremental timestamp contract, so this check warns instead of failing.
+        data_tests:
+          - not_null:
+              config:
+                severity: warn
+
+  - name: fct_customer_orders
+    description: One row per customer with completed order counts and revenue.
+    columns:
+      - name: customer_id
+        data_tests: [not_null, unique]
+      - name: completed_order_count
+        data_tests: [not_null]
+
+  - name: fct_orders_incremental
+    description: Incremental order-grain example using a three-day source update lookback and merge key. Null and future-dated source timestamps are reprocessed on every run and never advance the watermark.
+    columns:
+      - name: order_id
+        data_tests: [not_null, unique]
+      - name: source_updated_at
+        description: Source change timestamp; null when the source omits it.
+      - name: watermark_status
+        description: "How the row's source_updated_at is treated: valid (sets the watermark), missing (null), or future (at or after current_date() plus incremental_future_skew_days, default the start of tomorrow, when the row was last written)."
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['valid', 'missing', 'future']
+      - name: amount
+        data_tests: [not_null]

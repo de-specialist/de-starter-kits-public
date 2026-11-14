@@ -1,0 +1,9 @@
+project_id                    = "YOUR_DEDICATED_NONPROD_PROJECT_ID"
+github_repository             = "OWNER/REPO"
+github_owner                  = "OWNER"
+github_repository_id          = "YOUR_NUMERIC_REPOSITORY_ID"
+github_repository_owner_id    = "YOUR_NUMERIC_OWNER_ID"
+wif_deployment_suffix         = "a1b2"
+confirm_nonproduction_project = false
+# Optional project-wide daily BigQuery query cap in MiB; 0 leaves the quota untouched.
+# bigquery_daily_query_quota_mib = 1048576

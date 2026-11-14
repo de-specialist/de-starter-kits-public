@@ -1,0 +1,114 @@
+version: 2
+
+models:
+  - name: stg_order_items
+    description: Clean item-level order activity with normalized status and typed values.
+    columns:
+      - name: order_item_id
+        data_tests: [not_null, unique]
+      - name: order_id
+        data_tests: [not_null]
+      - name: user_id
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('stg_users')
+                field: user_id
+      - name: product_id
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('stg_products')
+                field: product_id
+      - name: sale_price
+        data_tests: [not_null]
+
+  - name: stg_products
+    columns:
+      - name: product_id
+        data_tests: [not_null, unique]
+      - name: product_name
+        description: >-
+          Product display name. The public TheLook source includes a few
+          products with no name, so this check warns instead of failing the
+          build.
+        data_tests:
+          - not_null:
+              config:
+                severity: warn
+
+  - name: stg_users
+    description: Customer attributes for analysis; excludes name, email, and street address.
+    columns:
+      - name: user_id
+        data_tests: [not_null, unique]
+
+  - name: mart_daily_product_sales
+    description: One row per order-item date and product. Completed metrics use status = complete; returned value is diagnostic sale price for returned items by item creation date.
+    columns:
+      - name: order_item_date
+        description: Date derived from the source order-item created_at timestamp.
+        data_tests: [not_null]
+      - name: product_id
+        description: Product identifier; combined with order_item_date, defines the mart grain.
+        data_tests: [not_null]
+      - name: completed_order_count
+        description: Distinct order IDs with at least one complete item for this product and date.
+        data_tests: [not_null]
+      - name: completed_item_count
+        description: Number of complete order items for this product and date.
+        data_tests: [not_null]
+      - name: completed_revenue
+        description: Sum of sale_price for complete order items for this product and date; gross item value, not margin.
+        data_tests: [not_null]
+      - name: returned_item_count
+        description: Number of returned order items for this product and date.
+        data_tests: [not_null]
+      - name: returned_value
+        description: Sum of sale_price for returned order items for this product and date; diagnostic value, not a refund ledger.
+        data_tests: [not_null]
+
+  - name: mart_customer_value
+    description: Customer-level order counts and completed-item revenue, including customers without completed orders.
+    columns:
+      - name: user_id
+        data_tests: [not_null, unique]
+      - name: completed_order_count
+        data_tests: [not_null]
+      - name: completed_revenue
+        data_tests: [not_null]
+
+  - name: mart_daily_product_sales_incremental
+    description: Optional date/product sales mart with a configurable rolling update window; disabled in the default build.
+    columns:
+      - name: order_item_date
+        data_tests: [not_null]
+      - name: product_id
+        data_tests: [not_null]
+      - name: completed_revenue
+        data_tests: [not_null]
+
+unit_tests:
+  - name: daily_product_sales_status_and_grain
+    description: Checks date/product grouping and complete-versus-returned metric rules using inline fixtures.
+    model: mart_daily_product_sales
+    given:
+      - input: ref('stg_order_items')
+        rows:
+          - {order_item_date: '2025-01-01', product_id: 1, order_id: 101, status: complete, sale_price: 20.0}
+          - {order_item_date: '2025-01-01', product_id: 1, order_id: 101, status: complete, sale_price: 5.0}
+          - {order_item_date: '2025-01-01', product_id: 1, order_id: 102, status: returned, sale_price: 7.0}
+          - {order_item_date: '2025-01-01', product_id: 1, order_id: 103, status: cancelled, sale_price: 50.0}
+          - {order_item_date: '2025-01-01', product_id: 2, order_id: 104, status: complete, sale_price: 12.0}
+          - {order_item_date: '2025-01-02', product_id: 1, order_id: 105, status: complete, sale_price: 9.0}
+      - input: ref('stg_products')
+        rows:
+          - {product_id: 1, product_name: 'Widget', category: 'Accessories', department: 'Women'}
+          - {product_id: 2, product_name: 'Gadget', category: 'Electronics', department: 'Men'}
+    expect:
+      rows:
+        - {order_item_date: '2025-01-01', product_id: 1, product_name: 'Widget', category: 'Accessories', department: 'Women', completed_order_count: 1, completed_item_count: 2, completed_revenue: 25.0, returned_item_count: 1, returned_value: 7.0}
+        - {order_item_date: '2025-01-01', product_id: 2, product_name: 'Gadget', category: 'Electronics', department: 'Men', completed_order_count: 1, completed_item_count: 1, completed_revenue: 12.0, returned_item_count: 0, returned_value: 0.0}
+        - {order_item_date: '2025-01-02', product_id: 1, product_name: 'Widget', category: 'Accessories', department: 'Women', completed_order_count: 1, completed_item_count: 1, completed_revenue: 9.0, returned_item_count: 0, returned_value: 0.0}

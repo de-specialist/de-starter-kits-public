@@ -1,0 +1,79 @@
+# scaffolded: editable Silver starter model (bigquery-silver-v1, source alias synthetic_retail).
+# Ownership: operator-owned after publication. The scaffolder never reads, rewrites,
+# renames, or deletes this file; a new scaffold needs a fresh client workspace.
+# Opt-in: enabled only with --target migration and --vars '{enable_migration_models: true}'.
+version: 2
+
+sources:
+  - name: migration_bronze_synthetic_retail
+    description: "Bronze tables loaded by the optional dlt migration command for source alias synthetic_retail."
+    # REVIEW: if MIGRATION_BRONZE_NAMESPACE is set it must equal the verified default below.
+    schema: "{{ env_var('MIGRATION_BRONZE_NAMESPACE', 'starterkit_migration_bronze') }}"
+    config:
+      enabled: "{{ target.name == 'migration' and (var('enable_migration_models', false) | as_bool) }}"
+    tables:
+      - name: customers
+        identifier: "customers"
+      - name: order_items
+        identifier: "order_items"
+      - name: orders
+        identifier: "orders"
+      - name: products
+        identifier: "products"
+
+models:
+  - name: silver_synthetic_retail__customers
+    description: "Scaffolded Silver starter for canonical customers. Editable; not deduplicated."
+    columns:
+      - name: customer_id
+        data_tests:
+          - not_null
+          - unique
+      - name: created_at
+      - name: country
+  - name: silver_synthetic_retail__order_items
+    description: "Scaffolded Silver starter for canonical order_items. Editable; not deduplicated."
+    columns:
+      - name: order_item_id
+        data_tests:
+          - not_null
+          - unique
+      - name: order_id
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('silver_synthetic_retail__orders')
+                field: order_id
+      - name: product_id
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('silver_synthetic_retail__products')
+                field: product_id
+      - name: quantity
+      - name: unit_price
+  - name: silver_synthetic_retail__orders
+    description: "Scaffolded Silver starter for canonical orders. Editable; not deduplicated."
+    columns:
+      - name: order_id
+        data_tests:
+          - not_null
+          - unique
+      - name: customer_id
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('silver_synthetic_retail__customers')
+                field: customer_id
+      - name: order_status
+      - name: order_date
+      - name: updated_at
+  - name: silver_synthetic_retail__products
+    description: "Scaffolded Silver starter for canonical products. Editable; not deduplicated."
+    columns:
+      - name: product_id
+        data_tests:
+          - not_null
+          - unique
+      - name: product_name
+      - name: category

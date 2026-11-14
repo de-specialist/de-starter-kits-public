@@ -1,0 +1,54 @@
+version: 2
+
+models:
+  - name: silver_customers
+    columns:
+      - name: customer_id
+        description: "Primary key excludes NULL, empty, and ASCII U+0020-space-only values; nonblank values, including padding, are preserved exactly."
+        data_tests: [not_null, unique]
+  - name: silver_products
+    columns:
+      - name: product_id
+        description: "Primary key excludes NULL, empty, and ASCII U+0020-space-only values; nonblank values, including padding, are preserved exactly."
+        data_tests: [not_null, unique]
+  - name: silver_orders
+    columns:
+      - name: order_id
+        description: "Primary key excludes NULL, empty, and ASCII U+0020-space-only values; nonblank values, including padding, are preserved exactly."
+        data_tests: [not_null, unique]
+      - name: customer_id
+        description: "Foreign key maps NULL, empty, and ASCII U+0020-space-only values to NULL; nonblank values are preserved exactly."
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('silver_customers')
+                field: customer_id
+  - name: silver_order_items
+    columns:
+      - name: order_item_id
+        description: "Primary key excludes NULL, empty, and ASCII U+0020-space-only values; nonblank values, including padding, are preserved exactly."
+        data_tests: [not_null, unique]
+      - name: order_id
+        description: "Foreign key maps NULL, empty, and ASCII U+0020-space-only values to NULL; nonblank values are preserved exactly."
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('silver_orders')
+                field: order_id
+      - name: product_id
+        description: "Foreign key maps NULL, empty, and ASCII U+0020-space-only values to NULL; nonblank values are preserved exactly."
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('silver_products')
+                field: product_id
+  - name: mart_migration_customer_value
+    columns:
+      - name: customer_id
+        data_tests: [not_null, unique]
+  - name: mart_migration_daily_product_sales
+    columns:
+      - name: order_date
+        data_tests: [not_null]
+      - name: product_id
+        data_tests: [not_null]

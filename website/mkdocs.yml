@@ -1,0 +1,132 @@
+site_name: Reliable Data Pipeline Starter Kit
+site_description: Documentation for the BigQuery and Snowflake dbt starter editions
+repo_url: https://github.com/htiwari-dev/de-starter-kits-public
+repo_name: htiwari-dev/de-starter-kits-public
+docs_dir: content
+site_dir: site
+edit_uri: edit/main/
+copyright: >-
+  Copyright &copy; 2026 the owner of the htiwari-dev/de-starter-kits-public repository.
+  Source-available evaluation licence (see Licence under Trust and FAQ).
+
+theme:
+  name: material
+  custom_dir: overrides
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: blue grey
+      accent: light blue
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: blue grey
+      accent: light blue
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.expand
+    - navigation.top
+    - navigation.footer
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+    - content.tabs.link
+    - toc.follow
+
+plugins:
+  - search
+
+# Internal link checks. `mkdocs build --strict` (scripts/build_docs_site.sh)
+# turns every warning below into a build failure.
+validation:
+  omitted_files: warn
+  not_found: warn
+  absolute_links: warn
+  unrecognized_links: warn
+  anchors: warn
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - def_list
+  - footnotes
+  - md_in_html
+  - tables
+  - toc:
+      permalink: true
+  - pymdownx.details
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.tabbed:
+      alternate_style: true
+
+# Internal planning pages are listed in website/docs-visibility.toml (or marked
+# with front matter). scripts/build_docs_site.sh never stages them, and CI fails
+# the build if one reaches website/site.
+
+nav:
+  - Home: index.md
+  - Start here:
+      - Learning paths: docs/start-here.md
+      - Glossary: docs/glossary.md
+  - Trust and FAQ:
+      - FAQ: docs/faq.md
+      - Licence: legal/license.md
+      - Notice and attribution: legal/notice.md
+      - Support: SUPPORT.md
+      - Security: SECURITY.md
+      - Licence and data terms: docs/decisions/0001-license-and-data-terms.md
+  - First run:
+      - Walkthrough: docs/first-run.md
+      - Checklist: docs/first-run-checklist.md
+      - Compatibility: docs/compatibility.md
+      - Documentation site: docs/docs-site.md
+  - BigQuery:
+      - Overview: editions/Bigquery/README.md
+      - Setup: editions/Bigquery/docs/setup.md
+      - Architecture: editions/Bigquery/docs/architecture.md
+      - Cost checks: editions/Bigquery/docs/cost-check.md
+      - Looker Studio: editions/Bigquery/docs/looker-studio.md
+      - Terraform: editions/Bigquery/infra/terraform/README.md
+      - dbt docs catalog: editions/Bigquery/dbt-docs-catalog.md
+  - Snowflake:
+      - Overview: editions/Snowflake/README.md
+      - Setup: editions/Snowflake/docs/setup.md
+      - Architecture: editions/Snowflake/docs/architecture.md
+      - Operations: editions/Snowflake/docs/operations.md
+      - Cost checks: editions/Snowflake/docs/cost-checks.md
+      - Adapting the kit: editions/Snowflake/docs/adapting-the-kit.md
+      - Migration: editions/Snowflake/docs/migration.md
+      - Terraform: editions/Snowflake/infra/terraform/README.md
+      - dbt docs catalog: editions/Snowflake/dbt-docs-catalog.md
+  - Shared guides:
+      - Mart contract: docs/mart-contract.md
+      - Operations and observability: docs/operations-and-observability.md
+      - Cost control guardrails: docs/cost-control-guardrails.md
+      - Terraform lifecycle: docs/terraform-lifecycle.md
+      - Cloud acceptance runbook: docs/cloud-acceptance-runbook.md
+      - Edition workspaces: docs/edition-workspaces.md
+      - CI security review: docs/ci-security-review.md
+      - Medallion migration: docs/medallion-migration-extension.md
+      - Migration loader: migration/README.md
+      - Scaffolder input contract: docs/scaffolder-input-contract.md
+      - Source change contract: docs/source-change-contract.md
+      - Source snapshot contract: docs/source-snapshot-contract.md
+      - Source connector selection: docs/source-connector-selection.md
+      - Provider APIs: docs/provider-apis.md
+  - Release:
+      - Changelog: CHANGELOG.md
+  - Contributing: CONTRIBUTING.md

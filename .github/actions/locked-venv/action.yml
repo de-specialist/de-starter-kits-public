@@ -1,0 +1,114 @@
+name: Restore locked Python virtualenv
+description: >-
+  Restore a virtualenv built from one hash-locked requirements file at
+  .ci-venv/<name>, relocated to this runner's interpreter and workspace. On a
+  miss it creates an empty venv for the caller to fill with a hash-verified
+  install. This action never saves: only ci-dependency-cache.yml on main writes
+  the cache, so pull request runs can read it but never poison it.
+
+inputs:
+  name:
+    description: Venv name; the venv lives at .ci-venv/<name> in the workspace.
+    required: true
+  lock:
+    description: Workspace-relative hash-locked requirements file the venv is built from.
+    required: true
+  activate:
+    description: Put the venv first on PATH for later steps.
+    required: false
+    default: 'true'
+  lookup-only:
+    description: Only check whether the cache entry exists; do not download it.
+    required: false
+    default: 'false'
+
+outputs:
+  cache-hit:
+    description: "'true' when a venv for this exact lock, interpreter and OS was restored (or found, with lookup-only)."
+    value: ${{ steps.restore.outputs.cache-hit }}
+  key:
+    description: Cache key for this lock, interpreter and OS.
+    value: ${{ steps.key.outputs.key }}
+  path:
+    description: Workspace-relative venv path, as passed to actions/cache.
+    value: ${{ steps.key.outputs.path }}
+  venv:
+    description: Absolute venv path.
+    value: ${{ steps.key.outputs.venv }}
+
+runs:
+  using: composite
+  steps:
+    - name: Compute venv cache key
+      id: key
+      shell: bash
+      env:
+        VENV_NAME: ${{ inputs.name }}
+        LOCK: ${{ inputs.lock }}
+        LOCK_HASH: ${{ hashFiles(inputs.lock) }}
+        # Any change to this action (venv layout, relocation) starts fresh entries.
+        ACTION_HASH: ${{ hashFiles('.github/actions/locked-venv/action.yml') }}
+      run: |
+        set -euo pipefail
+        [[ "$VENV_NAME" =~ ^[a-z0-9][a-z0-9-]*$ ]] || { echo "::error::Invalid venv name: $VENV_NAME"; exit 1; }
+        [[ -f "$GITHUB_WORKSPACE/$LOCK" && -n "$LOCK_HASH" ]] || { echo "::error::Lock file not found: $LOCK"; exit 1; }
+        # Base interpreter even if another venv is already on PATH.
+        base="$(python -c 'import sys; print(getattr(sys, "_base_executable", sys.executable))')"
+        runtime="$("$base" -c 'import platform, sys; print("py%d.%d.%d-%s-libc%s" % (*sys.version_info[:3], platform.machine(), platform.libc_ver()[1] or "none"))')"
+        # ImageOS is set on GitHub-hosted images only; it keeps hosted and self-hosted entries apart.
+        [[ -n "$ACTION_HASH" ]] || { echo '::error::locked-venv action.yml not found in the workspace'; exit 1; }
+        echo "key=locked-venv-${ACTION_HASH:0:12}-${VENV_NAME}-${RUNNER_OS}-${ImageOS:-selfhosted}-${runtime}-${LOCK_HASH}" >> "$GITHUB_OUTPUT"
+        echo "path=.ci-venv/${VENV_NAME}" >> "$GITHUB_OUTPUT"
+        echo "venv=${GITHUB_WORKSPACE}/.ci-venv/${VENV_NAME}" >> "$GITHUB_OUTPUT"
+        echo "base=${base}" >> "$GITHUB_OUTPUT"
+
+    # No restore-keys: a venv is only ever reused for byte-identical lock contents.
+    - name: Restore venv
+      id: restore
+      uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: ${{ steps.key.outputs.path }}
+        key: ${{ steps.key.outputs.key }}
+        lookup-only: ${{ inputs.lookup-only }}
+
+    # Venvs embed absolute paths: point the interpreter links and pyvenv.cfg at
+    # this runner's Python and rewrite script shebangs to this workspace.
+    - name: Relocate restored venv
+      if: steps.restore.outputs.cache-hit == 'true' && inputs.lookup-only != 'true'
+      shell: bash
+      env:
+        VENV: ${{ steps.key.outputs.venv }}
+        BASE_PYTHON: ${{ steps.key.outputs.base }}
+      run: |
+        set -euo pipefail
+        origin="$(cat "$VENV/.venv-origin")"
+        find "$VENV/bin" -maxdepth 1 -type l -name 'python*' -delete
+        "$BASE_PYTHON" -m venv --upgrade --without-pip "$VENV"
+        if [[ "$origin" != "$VENV" ]]; then
+          { grep -rlIF -- "$origin" "$VENV/bin" || true; } | while IFS= read -r f; do
+            ORIGIN="$origin" VENV="$VENV" "$BASE_PYTHON" -c 'import os, sys; p = sys.argv[1]; s = open(p, encoding="utf-8").read(); open(p, "w", encoding="utf-8").write(s.replace(os.environ["ORIGIN"], os.environ["VENV"]))' "$f"
+          done
+        fi
+        printf '%s\n' "$VENV" > "$VENV/.venv-origin"
+        "$VENV/bin/python" -c 'import sys; assert sys.prefix != sys.base_prefix, "venv did not activate"'
+
+    - name: Create empty venv on cache miss
+      if: steps.restore.outputs.cache-hit != 'true'
+      shell: bash
+      env:
+        VENV: ${{ steps.key.outputs.venv }}
+        BASE_PYTHON: ${{ steps.key.outputs.base }}
+      run: |
+        set -euo pipefail
+        rm -rf "$VENV"
+        "$BASE_PYTHON" -m venv "$VENV"
+        printf '%s\n' "$VENV" > "$VENV/.venv-origin"
+
+    - name: Activate venv
+      if: inputs.activate == 'true'
+      shell: bash
+      env:
+        VENV: ${{ steps.key.outputs.venv }}
+      run: |
+        echo "$VENV/bin" >> "$GITHUB_PATH"
+        echo "VIRTUAL_ENV=$VENV" >> "$GITHUB_ENV"

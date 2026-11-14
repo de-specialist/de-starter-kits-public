@@ -1,0 +1,19 @@
+retail_analytics:
+  target: ci
+  outputs:
+    ci:
+      type: bigquery
+      method: oauth
+      project: "{{ env_var('BQ_PROJECT', 'ci-placeholder') }}"
+      dataset: "{{ env_var('BQ_DATASET', 'ci_placeholder') }}"
+      location: US
+      threads: 1
+      maximum_bytes_billed: 1000000000
+    migration:
+      type: bigquery
+      method: oauth
+      project: ci-placeholder
+      dataset: migration_ci_placeholder
+      location: US
+      threads: 1
+      maximum_bytes_billed: 1000000000

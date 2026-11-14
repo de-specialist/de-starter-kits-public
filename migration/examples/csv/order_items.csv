@@ -1,0 +1,5 @@
+order_item_id,order_id,product_id,quantity,unit_price
+I001,O100,P001,2,18.50
+I002,O100,P003,1,6.00
+I003,O101,P002,1,24.00
+I004,O102,P003,3,6.00

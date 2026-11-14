@@ -1,0 +1,9 @@
+# Gitleaks configuration for release archive scans.
+#
+# scripts/validate_release_archives.sh always passes this file with --config, so
+# a .gitleaks.toml shipped inside an edition can never replace or weaken the
+# rules used to scan that edition's archive. Changes here need security review.
+title = "de-starter-kits release archive scan"
+
+[extend]
+useDefault = true

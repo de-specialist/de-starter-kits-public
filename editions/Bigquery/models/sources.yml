@@ -1,0 +1,14 @@
+version: 2
+
+sources:
+  - name: thelook
+    description: Public fictional e-commerce data hosted in BigQuery.
+    database: bigquery-public-data
+    schema: thelook_ecommerce
+    tables:
+      - name: order_items
+        description: Item-level order activity, including lifecycle status and sale price.
+      - name: products
+        description: Product catalog attributes and list prices.
+      - name: users
+        description: Customer attributes. Curated models intentionally exclude direct identifiers.

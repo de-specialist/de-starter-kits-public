@@ -1,0 +1,4 @@
+order_id,customer_id,order_status,order_date,updated_at
+O100,C001,complete,2025-02-01,2025-02-01T11:05:00Z
+O101,C002,returned,2025-02-02,2025-02-05T08:00:00Z
+O102,C001,complete,2025-02-03,2025-02-03T16:50:00Z

@@ -1,0 +1,7 @@
+.dlt/
+.venv/
+__pycache__/
+*.py[cod]
+run-manifests/
+*.db
+*.duckdb

@@ -1,0 +1,12 @@
+version: 2
+
+sources:
+  - name: migration_bronze
+    description: Raw tables loaded by the optional dlt migration command.
+    database: "{{ env_var('BQ_PROJECT') }}"
+    schema: "{{ env_var('MIGRATION_BRONZE_NAMESPACE', 'starterkit_migration_bronze') }}"
+    tables:
+      - name: customers
+      - name: products
+      - name: orders
+      - name: order_items

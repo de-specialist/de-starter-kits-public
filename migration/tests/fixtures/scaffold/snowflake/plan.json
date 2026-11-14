@@ -1,0 +1,127 @@
+{
+  "edition": "snowflake",
+  "source_id": "synthetic_retail",
+  "bronze_namespace": "starterkit_migration_bronze",
+  "tables": [
+    {
+      "entity": "customers",
+      "bronze_table": "customers",
+      "columns": [
+        {
+          "canonical_name": "customer_id",
+          "bronze_column": "customer_number",
+          "cast": "string",
+          "nullable": false
+        },
+        {
+          "canonical_name": "created_at",
+          "bronze_column": "customer_created",
+          "cast": "timestamp",
+          "nullable": true
+        },
+        {
+          "canonical_name": "country",
+          "bronze_column": "country_name",
+          "cast": "string",
+          "nullable": true
+        }
+      ]
+    },
+    {
+      "entity": "products",
+      "bronze_table": "products",
+      "columns": [
+        {
+          "canonical_name": "product_id",
+          "bronze_column": "sku",
+          "cast": "string",
+          "nullable": false
+        },
+        {
+          "canonical_name": "product_name",
+          "bronze_column": "product_title",
+          "cast": "string",
+          "nullable": true
+        },
+        {
+          "canonical_name": "category",
+          "bronze_column": "product_group",
+          "cast": "string",
+          "nullable": true
+        }
+      ]
+    },
+    {
+      "entity": "orders",
+      "bronze_table": "orders",
+      "columns": [
+        {
+          "canonical_name": "order_id",
+          "bronze_column": "order_number",
+          "cast": "string",
+          "nullable": false
+        },
+        {
+          "canonical_name": "customer_id",
+          "bronze_column": "buyer_id",
+          "cast": "string",
+          "nullable": true
+        },
+        {
+          "canonical_name": "order_status",
+          "bronze_column": "status",
+          "cast": "string",
+          "nullable": true
+        },
+        {
+          "canonical_name": "order_date",
+          "bronze_column": "purchase_date",
+          "cast": "date",
+          "nullable": true
+        },
+        {
+          "canonical_name": "updated_at",
+          "bronze_column": "modified_at",
+          "cast": "timestamp",
+          "nullable": true
+        }
+      ]
+    },
+    {
+      "entity": "order_items",
+      "bronze_table": "order_items",
+      "columns": [
+        {
+          "canonical_name": "order_item_id",
+          "bronze_column": "line_id",
+          "cast": "string",
+          "nullable": false
+        },
+        {
+          "canonical_name": "order_id",
+          "bronze_column": "order_number",
+          "cast": "string",
+          "nullable": true
+        },
+        {
+          "canonical_name": "product_id",
+          "bronze_column": "sku",
+          "cast": "string",
+          "nullable": true
+        },
+        {
+          "canonical_name": "quantity",
+          "bronze_column": "units",
+          "cast": "integer",
+          "nullable": true
+        },
+        {
+          "canonical_name": "unit_price",
+          "bronze_column": "item_price",
+          "cast": "numeric",
+          "nullable": true
+        }
+      ]
+    }
+  ]
+}

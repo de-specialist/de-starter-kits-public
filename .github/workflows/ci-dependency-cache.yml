@@ -1,0 +1,86 @@
+name: CI dependency cache
+
+# Sole writer of the locked-venv cache that the CI workflows restore. It runs
+# only on main (pushes that change a lock, a weekly refresh against cache
+# eviction, or a manual dispatch from main), holds no secrets, and installs
+# each lock with --require-hashes. Pull request runs only ever restore.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'editions/Bigquery/requirements-lock.txt'
+      - 'editions/Snowflake/requirements-lock.txt'
+      - 'website/requirements-lock.txt'
+      - 'migration/tests-requirements-lock.txt'
+      - '.github/actions/locked-venv/**'
+      - '.github/workflows/ci-dependency-cache.yml'
+  schedule:
+    - cron: '23 4 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  warm:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      max-parallel: 2
+      matrix:
+        include:
+          - name: dbt-bigquery
+            lock: editions/Bigquery/requirements-lock.txt
+          - name: dbt-snowflake
+            lock: editions/Snowflake/requirements-lock.txt
+          - name: website
+            lock: website/requirements-lock.txt
+          - name: migration-tests
+            lock: migration/tests-requirements-lock.txt
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7
+        with:
+          python-version: '3.11'
+      - name: Look up existing venv
+        id: venv
+        uses: ./.github/actions/locked-venv
+        with:
+          name: ${{ matrix.name }}
+          lock: ${{ matrix.lock }}
+          activate: 'false'
+          lookup-only: 'true'
+      # uv installs the uv-compiled, hash-locked files faster and with less CPU
+      # than pip. Its own GitHub cache stays off: only the venv cache below is written.
+      - name: Set up pinned uv
+        if: steps.venv.outputs.cache-hit != 'true'
+        uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          version: '0.12.24'
+          enable-cache: false
+      - name: Install hash-locked dependencies into the venv
+        if: steps.venv.outputs.cache-hit != 'true'
+        env:
+          VENV: ${{ steps.venv.outputs.venv }}
+          LOCK: ${{ matrix.lock }}
+          # Copy files into the venv so the saved cache never holds links into uv's cache.
+          UV_LINK_MODE: copy
+        run: |
+          uv pip install --python "$VENV/bin/python" --require-hashes -r "$LOCK"
+          # Runners set PIP_NO_COMPILE; precompile once here so every restore skips it.
+          "$VENV/bin/python" -m compileall -q -j 2 "$VENV/lib" > /dev/null || echo '::warning::Some files did not byte-compile.'
+          sha256sum "$LOCK" | cut -d' ' -f1 > "$VENV/.requirements-lock.sha256"
+      - name: Save venv
+        if: steps.venv.outputs.cache-hit != 'true'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ steps.venv.outputs.path }}
+          key: ${{ steps.venv.outputs.key }}

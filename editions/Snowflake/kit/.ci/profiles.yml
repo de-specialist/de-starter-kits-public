@@ -1,0 +1,27 @@
+reliable_pipeline:
+  target: ci
+  outputs:
+    ci:
+      type: snowflake
+      account: "{{ env_var('SNOWFLAKE_ACCOUNT', 'ci-placeholder') }}"
+      user: "{{ env_var('SNOWFLAKE_USER', 'ci-placeholder') }}"
+      password: "{{ env_var('SNOWFLAKE_PASSWORD', 'ci-placeholder') }}"
+      role: "{{ env_var('SNOWFLAKE_ROLE', 'CI_ROLE') }}"
+      database: "{{ env_var('SNOWFLAKE_DATABASE', 'DBT_KIT_CI_PARSE_DB') }}"
+      warehouse: "{{ env_var('SNOWFLAKE_WAREHOUSE', 'CI_WAREHOUSE') }}"
+      schema: "{{ env_var('SNOWFLAKE_SCHEMA', 'DBT_KIT_CI_PARSE_SCHEMA') }}"
+      threads: 1
+      client_session_keep_alive: false
+      query_tag: de_starter_snowflake_ci
+    migration:
+      type: snowflake
+      account: ci-placeholder
+      user: ci-placeholder
+      password: ci-placeholder
+      role: CI_ROLE
+      database: MIGRATION_CI_DATABASE
+      warehouse: CI_WAREHOUSE
+      schema: MIGRATION_CI
+      threads: 1
+      client_session_keep_alive: false
+      query_tag: de_starter_snowflake_migration_parse

@@ -1,0 +1,10 @@
+target/
+dbt_packages/
+logs/
+.venv/
+.env
+.env.*
+!.env.example
+profiles.yml
+!.ci/profiles.yml
+.ci/.user.yml

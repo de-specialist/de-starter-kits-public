@@ -1,0 +1,2 @@
+# Minimal runtime for the offline migration safety tests; no cloud adapters or drivers.
+dlt[duckdb,sql_database]==1.32.0

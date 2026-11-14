@@ -871,9 +871,9 @@ metricflow==0.213.0 \
     --hash=sha256:6e1865535a200607529970f6ca1a9fcd22b7814d0b71cd654d9ee01eecf0157b \
     --hash=sha256:e6b5e8f05a0b9b0183430416052a61747fc89f809c39f2cdc5a3d9ba7a3f6931
     # via dbt-core
-more-itertools==10.8.0 \
-    --hash=sha256:52d4362373dcf7c52546bc4af9a86ee7c4579df9a8dc268be0a2f949d376cc9b \
-    --hash=sha256:f638ddf8a1a0d134181275fb5d58b086ead7c6a72429ad725c67503f13ba30bd
+more-itertools==11.2.1 \
+    --hash=sha256:35a7377edd1dd6608dcb2cdf534ded55ea32d49448875ad042cd3f879fb1ded0 \
+    --hash=sha256:cbf08fd0af284dc69718b9b76a8e6203df624d70209ea511e4219d350c856f63
     # via metricflow
 msgpack==1.2.4 \
     --hash=sha256:0221748c30ace75fde0dec8c470abe65fb5374cd4f37adb9db6aca7a3c362c0a \

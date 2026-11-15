@@ -54,6 +54,14 @@ from schema_drift import (
     snapshot_name_fingerprint,
     snapshot_typed_fingerprint,
 )
+from postgres_snapshot_guard import (
+    PostgresSnapshotGuard,
+    SnapshotGuardError,
+    consistency_ready,
+    require_operator_gate,
+    sql_source_family,
+    unsupported_source_evidence,
+)
 
 # Pin dlt's project settings before importing it. dlt 1.32.0 resolves project TOML
 # from DLT_PROJECT_DIR/.dlt; telemetry is disabled before runtime initialization.
@@ -116,6 +124,8 @@ _SAFE_CLI_MESSAGES = {
     "load_jobs_failed": "One or more destination load jobs failed; inspect the private manifest and destination job history.",
     "namespace_missing": "The confirmed cloud namespace does not exist; pre-create it before loading.",
     "namespace_probe_failed": "The confirmed cloud namespace could not be verified immediately before loading; no load was started.",
+    "source_snapshot_unverifiable_not_acknowledged": "PostgreSQL load refused: enable the snapshot guard or explicitly acknowledge an unverified source snapshot.",
+    "source_snapshot_acknowledgement_not_applicable": "The unverified-snapshot acknowledgement applies only to unguarded PostgreSQL loads.",
 }
 
 
@@ -926,8 +936,7 @@ def retail_contract_report(inventory: list[dict[str, object]], source_kind: str,
     }
 
 
-def make_sql_source(engine, schema: str, table_names: list[str], run_id: str, ingested_at: str, budget, client, expected_schema_fingerprint: str, expected_typed_schema_fingerprint: str, mappings: dict[str, list[dict[str, str]]],
-                    *, type_profile: DestinationTypeProfile):
+def make_sql_source(engine, schema: str, table_names: list[str], run_id: str, ingested_at: str, budget, client, expected_schema_fingerprint: str, expected_typed_schema_fingerprint: str, mappings: dict[str, list[dict[str, str]]], *, type_profile: DestinationTypeProfile, engine_adapter_callback=None):
     _require_type_profile(type_profile)
     if not schema or not _SAFE_IDENTIFIER.fullmatch(schema):
         raise ValueError("Source schema must contain letters, numbers, and underscores only.")
@@ -957,6 +966,7 @@ def make_sql_source(engine, schema: str, table_names: list[str], run_id: str, in
         table_names=table_names,
         chunk_size=1,
         reflection_level="full_with_precision",
+        engine_adapter_callback=engine_adapter_callback,
     )
     for resource in source.resources.values():
         entity_name = resource.name
@@ -1024,6 +1034,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--csv-dir", type=Path, help="Directory containing one CSV file per entity.")
     parser.add_argument("--csv-glob", default="*.csv", help="File glob for the CSV directory (default: *.csv).")
     parser.add_argument("--source-url-env", default="MIGRATION_SOURCE_URL", help="Environment variable holding the SQLAlchemy URL.")
+    parser.add_argument("--enable-postgres-snapshot-guard", action="store_true", help="Bind PostgreSQL reads to one exported repeatable-read snapshot and require verification before loading.")
+    parser.add_argument("--acknowledge-unverified-source-snapshot", action="store_true", help="Allow a PostgreSQL load without the guard; the run remains consistency-unverified.")
     parser.add_argument("--source-schema", help="Source schema for the SQL database.")
     parser.add_argument("--pipeline-name", default="starterkit_migration", help="Prefix for the generated dlt pipeline/schema name (combined name limit: 64 characters; default: starterkit_migration).")
     parser.add_argument("--max-rows-per-table", type=positive_int, default=_DEFAULT_MAX_ROWS_PER_TABLE)
@@ -1718,6 +1730,7 @@ def main() -> int:
     pipeline = None
     budget = None
     source_engine = None
+    snapshot_guard = None
     try:
         caller_cwd = Path.cwd()
         tables = parse_tables(args.tables)
@@ -1739,6 +1752,30 @@ def main() -> int:
             _raise_safe_cli("csv_source_directory_required")
         if args.source == "sql" and (tables is None or not args.source_schema):
             _raise_safe_cli("sql_source_selection_required")
+
+        connection_url = None
+        source_consistency_evidence = None
+        if not args.dry_run:
+            if args.source == "csv":
+                require_operator_gate("csv", acknowledged=args.acknowledge_unverified_source_snapshot)
+                source_consistency_evidence = unsupported_source_evidence("csv_source_snapshot_not_applicable")
+            else:
+                connection_url = os.environ.get(args.source_url_env)
+                if not connection_url:
+                    _raise_safe_cli("sql_source_url_unset")
+                family = sql_source_family(make_url(connection_url).get_backend_name())
+                if args.enable_postgres_snapshot_guard and family != "postgresql":
+                    _raise_safe_cli("source_snapshot_acknowledgement_not_applicable")
+                require_operator_gate(
+                    family,
+                    acknowledged=args.acknowledge_unverified_source_snapshot,
+                    guard_enabled=args.enable_postgres_snapshot_guard,
+                )
+                if not args.enable_postgres_snapshot_guard:
+                    source_consistency_evidence = unsupported_source_evidence(
+                        "postgresql_snapshot_not_guarded" if family == "postgresql" else "sqlite_snapshot_not_applicable",
+                        acknowledged=args.acknowledge_unverified_source_snapshot,
+                    )
 
         dataset = args.dataset or ("starterkit_migration_bronze" if args.destination == "duckdb" else None)
         if not dataset:
@@ -1990,6 +2027,11 @@ def main() -> int:
             if not connection_url:
                 _raise_safe_cli("sql_source_url_unset")
             source_engine = create_read_only_sql_engine(connection_url)
+            if args.enable_postgres_snapshot_guard:
+                snapshot_guard = PostgresSnapshotGuard()
+                snapshot_guard.open(source_engine.raw_connection())
+                snapshot_guard.attach(source_engine)
+                source_consistency_evidence = snapshot_guard.evidence()
             source_inventory = inventory_sql_inputs(source_engine, args.source_schema, tables)
             if any(item.get("status") == "missing" for item in source_inventory):
                 _raise_safe_cli("source_inputs_missing")
@@ -2014,6 +2056,7 @@ def main() -> int:
                 source_engine, args.source_schema, tables, run_id, started_at, budget, client,
                 expected_schema_fingerprint, expected_typed_schema_fingerprint, mappings,
                 type_profile=type_profile,
+                engine_adapter_callback=snapshot_guard.attach if snapshot_guard is not None else None,
             )
             csv_actual_counts = {}
 
@@ -2077,6 +2120,8 @@ def main() -> int:
             "source_schema_snapshot": schema_snapshot(source_inventory),
             "source_schema_snapshot_algorithm": _SCHEMA_SNAPSHOT_ALGORITHM,
         }
+        if source_consistency_evidence is not None:
+            record.update(source_consistency_evidence)
         if schema_drift_review is not None:
             record["schema_drift_review"] = schema_drift_review
         # Operator assertion only; omitted when not supplied so legacy behavior is unchanged.
@@ -2096,6 +2141,15 @@ def main() -> int:
         # Extraction and normalization are staged separately. Any malformed row or budget
         # rejection therefore stops before the destination load step begins.
         pipeline.extract(data, workers=1)
+        if snapshot_guard is not None:
+            snapshot_guard.confirm()
+            source_consistency_evidence = snapshot_guard.evidence()
+            record.update(source_consistency_evidence)
+            if not consistency_ready(record):
+                raise RuntimeError("PostgreSQL source snapshot evidence is not ready for destination loading.")
+            write_private_manifest(manifest_path, record, allow_update=True)
+            snapshot_guard.close()
+            snapshot_guard = None
         # Successful exhaustion proves every explicitly selected resource completed,
         # including an authorized empty table that yielded no rows.
         for entity in entities:
@@ -2177,6 +2231,14 @@ def main() -> int:
             source_engine = None
         return 0
     except Exception as error:  # Keep exception strings suppressed because drivers may embed connection details.
+        if snapshot_guard is not None:
+            snapshot_guard.close()
+            if record is not None:
+                record.update(snapshot_guard.evidence())
+                try:
+                    write_private_manifest(manifest_path, record, allow_update=True)
+                except Exception:
+                    pass
         if source_engine is not None:
             try:
                 source_engine.dispose()
@@ -2202,11 +2264,17 @@ def main() -> int:
                 pass
         if isinstance(error, SafeCliError):
             print(f"Migration stopped: {_SAFE_CLI_MESSAGES[error.code]}", file=sys.stderr)
+        elif isinstance(error, SnapshotGuardError):
+            message = _SAFE_CLI_MESSAGES.get(error.code, str(error))
+            print(f"Migration stopped: {message}", file=sys.stderr)
         elif isinstance(error, (MappingConfigurationError, PipelineNameTooLongError)):
             print(f"Migration stopped: {error}", file=sys.stderr)
         else:
             print(f"Migration stopped ({type(error).__name__}). Review the command and local configuration privately.", file=sys.stderr)
         return 1
+    finally:
+        if snapshot_guard is not None:
+            snapshot_guard.close()
 
 
 if __name__ == "__main__":

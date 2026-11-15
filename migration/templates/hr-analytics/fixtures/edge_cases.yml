@@ -1,0 +1,179 @@
+# Synthetic normalized scenarios only; stable identities/revisions are test assumptions.
+version: 1
+snapshot_cases:
+  - name: missing_prior_snapshot
+    selected_months:
+      - 2032-10
+    prior_complete: false
+    current_complete: true
+    prior_statuses: []
+    current_statuses:
+      - active
+    terminations: 1
+    expected_headcount: 1
+    expected_turnover: null
+  - name: leave_status_excluded_under_fixture_active_only_rule
+    selected_months:
+      - 2032-10
+    prior_complete: true
+    current_complete: true
+    prior_statuses:
+      - active
+      - active
+    current_statuses:
+      - active
+      - leave
+    terminations: 1
+    expected_headcount: 1
+    expected_turnover: 0.666667
+  - name: multiple_months_no_implicit_latest
+    selected_months:
+      - 2032-09
+      - 2032-10
+    prior_complete: true
+    current_complete: true
+    prior_statuses:
+      - active
+    current_statuses:
+      - active
+    terminations: 0
+    expected_headcount: null
+    expected_turnover: null
+  - name: complete_empty_zero_denominator
+    selected_months:
+      - 2032-10
+    prior_complete: true
+    current_complete: true
+    prior_statuses: []
+    current_statuses: []
+    terminations: 0
+    expected_headcount: 0
+    expected_turnover: null
+  - name: nonempty_incomplete_snapshot
+    selected_months:
+      - 2032-10
+    prior_complete: true
+    current_complete: false
+    prior_statuses:
+      - active
+    current_statuses:
+      - active
+      - active
+    terminations: 1
+    expected_headcount: null
+    expected_turnover: null
+identity_cases:
+  - name: repeated_exports_rehire_and_corrected_start
+    rows:
+      - episode_id: MOCK-1
+        revision: 1
+        start_date: '2032-09-01'
+      - episode_id: MOCK-1
+        revision: 1
+        start_date: '2032-09-01'
+      - episode_id: MOCK-1
+        revision: 2
+        start_date: '2032-09-02'
+      - episode_id: MOCK-2
+        revision: 1
+        start_date: '2032-10-01'
+    expected_dates:
+      - '2032-09-02'
+      - '2032-10-01'
+  - name: conflicting_revision_quarantined
+    rows:
+      - episode_id: MOCK-1
+        revision: 1
+        start_date: '2032-09-01'
+      - episode_id: MOCK-1
+        revision: 1
+        start_date: '2032-09-02'
+    expected_dates: null
+overlap_cases:
+  - name: repeated_export_preserves_two_same_day_shifts
+    rows:
+      - record_key: MOCK-S1
+        revision: 1
+        hours: 4
+      - record_key: MOCK-S1
+        revision: 1
+        hours: 4
+      - record_key: MOCK-S2
+        revision: 1
+        hours: 4
+    expected_hours: 8
+  - name: missing_record_identity_is_ambiguous
+    rows:
+      - record_key: null
+        revision: 1
+        hours: 4
+      - record_key: null
+        revision: 1
+        hours: 4
+    expected_hours: null
+duration_cases:
+  - name: hire_without_requisition_still_counts
+    start_date: '2032-10-01'
+    requisition_created_date: null
+    expected_hires: 1
+    expected_days: null
+  - name: negative_duration_quarantined
+    start_date: '2032-10-01'
+    requisition_created_date: '2032-10-02'
+    expected_hires: null
+    expected_days: null
+  - name: missing_start_quarantined
+    start_date: null
+    requisition_created_date: '2032-10-01'
+    expected_hires: null
+    expected_days: null
+median_cases:
+  - name: median_excludes_blank_and_negative_dates_keeps_zero
+    rows:
+      - {start: '2032-10-01', created: '2032-10-01'}
+      - {start: '2032-10-11', created: '2032-10-01'}
+      - {start: '2032-10-21', created: '2032-10-01'}
+      - {start: null, created: '2032-10-01'}
+      - {start: '2032-10-01', created: null}
+      - {start: '2032-10-01', created: '2032-10-02'}
+    expected_median: 10
+  - name: median_all_invalid_is_blank
+    rows:
+      - {start: null, created: null}
+      - {start: '2032-10-01', created: '2032-10-02'}
+    expected_median: null
+  - name: median_even_population
+    rows:
+      - {start: '2032-10-02', created: '2032-10-01'}
+      - {start: '2032-10-05', created: '2032-10-01'}
+    expected_median: 2.5
+requisition_snapshot_cases:
+  - name: selected_month_and_open_status_only_for_open_metrics
+    selected_months: ['2032-10']
+    complete: true
+    rows:
+      - {month: '2032-09', key: MOCK-REQ-1, status: open, openings: 99, applicants: 99, hired: 99}
+      - {month: '2032-10', key: MOCK-REQ-1, status: open, openings: 3, applicants: 8, hired: 1}
+      - {month: '2032-10', key: MOCK-REQ-2, status: filled, openings: 2, applicants: 5, hired: 2}
+    expected: [1, 3, 13, 3]
+  - name: complete_empty_requisitions_zero
+    selected_months: ['2032-10']
+    complete: true
+    rows: []
+    expected: [0, 0, 0, 0]
+  - name: incomplete_requisitions_blank
+    selected_months: ['2032-10']
+    complete: false
+    rows:
+      - {month: '2032-10', key: MOCK-REQ-1, status: open, openings: 3, applicants: 8, hired: 1}
+    expected: null
+  - name: multiple_requisition_months_blank
+    selected_months: ['2032-09', '2032-10']
+    complete: true
+    rows: []
+    expected: null
+  - name: no_requisition_month_blank
+    selected_months: []
+    complete: true
+    rows: []
+    expected: null

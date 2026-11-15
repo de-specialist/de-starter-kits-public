@@ -12,6 +12,10 @@ Start with the [first-run guide](docs/first-run.md), the
 [BigQuery setup](editions/Bigquery/docs/setup.md), or the
 [Snowflake setup](editions/Snowflake/docs/setup.md). The optional
 [migration tools](migration/README.md) include synthetic local fixtures.
+The [next enhancements plan](docs/next-enhancements.md) lists the evidence and
+engineering gates for future work.
+For safe troubleshooting and recovery boundaries, see the
+[operator incident runbook](docs/incident-runbook.md).
 
 ## Configuration stays private
 

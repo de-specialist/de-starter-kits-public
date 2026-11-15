@@ -9,6 +9,27 @@ This optional extension copies selected source data to a dedicated Bronze namesp
 - **Initial load behavior:** this version performs a full table replacement for selected Bronze tables. Rerunning replaces those same selected tables. It does not yet capture ongoing changes or perform CDC. It migrates table data, not indexes, constraints, views, stored procedures, users, or grants.
 - **Retail Silver/Gold template:** expects `customers`, `products`, `orders`, and `order_items` with the sample field names in `examples/csv/`. Arbitrary SQL tables can be copied to Bronze, but need adapted Silver models before they can use the retail Gold marts.
 
+## Generic template catalog
+
+- [snapshot-contract](templates/snapshot-contract/README.md): Defines delivery completeness, correction, duplicate, and empty-period rules for full snapshots; does not enforce them.
+- [scd2-history](templates/scd2-history/README.md): Builds type 2 entity history from complete snapshots or changes. Snapshot history records observed states and cannot recover changes between observations.
+- [incremental-ingest](templates/incremental-ingest/README.md): A local CSV-to-SQLite reference runner with watermarks and late-arrival handling, not a warehouse connector or CDC. Hard deletes are not captured.
+- [hr-analytics](templates/hr-analytics/README.md): A design-only synthetic HR example with contracts, mappings, proposed reports, and draft DAX; no deployed pipeline.
+
+## Generic HR design template
+
+The optional [generic HR template](templates/hr-analytics/README.md) is a self-contained, design-only synthetic example: generic canonical contracts and mappings, proposed report views, separate analyst and leadership semantic contracts, draft DAX, and synthetic fixtures. Restricted or unapproved attributes are excluded; all fixture values are synthetic. It does not extend the migration CLI's supported sources or destinations, install dbt models, or deploy Fabric resources. Logical Gold names require adaptation to the selected edition's conventions; existing retail builds, profiles, and dependencies remain separate.
+
+**Leadership publication is blocked** until an owner approves the disclosure policy and primary and complementary suppression are implemented upstream and independently tested. Leadership must use a separate aggregate-only model with no employee keys, detail facts, exact employee event dates, or access path to detail. Tests must cover totals, intersecting filters, repeated releases/differencing, exports, and permission isolation. Draft DAX, hidden columns, RLS, and a disclosure-status column do not establish this security boundary; no suppression threshold is assumed.
+
+Run the local checks from the repository root (requires PyYAML):
+
+```sh
+python3 migration/templates/hr-analytics/validate_fixtures.py
+```
+
+The validator checks public-content policy markers, MOCK identifier prefixes, YAML/CSV structure, contract/mapping and analyst DAX references, report coverage, synthetic KPI arithmetic, and edge scenarios. It does not execute DAX/dbt, implement suppression, verify Fabric permissions, or establish real report equivalence. Source authority, complete snapshot manifests, historical attributes, corrected-event identity, overlapping extracts, and approved absence counter definitions remain production release blockers. Keep real-data onboarding, cloud acceptance, and deployment in a separate private repository.
+
 ## Offline regression tests
 
 From the repository root, install the hash-locked test dependencies and run the suite with `CI=true`. The CI flag prevents migration tests from passing by skipping when a required dependency is absent. The suite uses local synthetic fixtures and temporary targets; it does not connect to BigQuery or Snowflake.

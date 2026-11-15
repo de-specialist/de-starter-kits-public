@@ -1,0 +1,195 @@
+version: 1
+status: canonical_example_requires_deployment_adapter
+design_basis: Hypothetical inputs only; no existing files, reports or deployment are described.
+snapshot_month_end:
+  source: export manifest or explicitly supplied parameter
+  do_not_infer_from: file_modification_time
+employee_key:
+  source_column: employee_key_from_restricted_map
+  target_column: employee_key
+  transform: HMAC-SHA256 using secret external to this repository
+  retain_source_identifier: restricted_bronze_only
+tables:
+  hire_action_event:
+    source_headers:
+      employee_key_from_restricted_map: employee_key_from_restricted_map
+      action_created_date: action_created_date
+      source_hr_action_code: source_hr_action_code
+      action_effective_date: action_effective_date
+    derived_columns:
+      hire_event_key: HMAC-SHA256(employee_key + approved_employee_start_date)
+    review_required:
+    - Approve which source_hr_action_code codes represent a completed hire; do not
+      classify every HR action as a hire.
+    - Confirm whether action_effective_date is the employee start date and reconcile
+      it to a future deployment’s approved duration definition.
+    - Deduplicate repeated monthly exports and retain correction history in restricted
+      Silver.
+  employee_snapshot:
+    source_headers:
+      worker_status: worker_status
+      employee_key_from_restricted_map: employee_key_from_restricted_map
+      company: company
+      location_hierarchy: location_hierarchy
+      location: location
+      department: department
+      job_title: job_title
+      employee_type: employee_type
+      employee_start_date: employee_start_date
+      alternate_start_date: alternate_start_date
+    review_required:
+    - Confirm whether employee_start_date or alternate_start_date is the authoritative
+      start-date field.
+    - Confirm how location is derived from the location hierarchy and location/department
+      fields.
+    - Confirm source status values that count as active at month end.
+    - Exclude restricted or unapproved attributes from Silver/Gold.
+    derived_columns:
+      employment_episode_key: HMAC-SHA256(employee_key + approved_employee_start_date)
+      tenure_band: banded_tenure_as_of_snapshot_date
+      termination_date: join_from_deduplicated_termination_event
+    status_mapping_requires_approval:
+      mapping_file: owner_approved_worker_status_codes
+      normalized_values:
+      - active
+      - terminated
+      - leave
+      - other
+  requisition_snapshot:
+    source_headers:
+      requisition_key: requisition_key
+      job_title: job_title
+      requisition_status: requisition_status
+      number_of_openings: number_of_openings
+      applicant_count: applicant_count
+      hired_applicant_count: hired_applicant_count
+      requisition_created_date: requisition_created_date
+      closed_date: closed_date
+      department: department
+    review_required:
+    - Define whether a future output counts requisitions or open positions, and whether
+      applicant counts are period totals or point-in-time values.
+    status_mapping_requires_approval:
+    - Normalize owner-approved source requisition status values to open, filled, or
+      closed.
+  time_to_hire:
+    source_headers:
+      employee_key_from_restricted_map: employee_key_from_restricted_map
+      requisition_key: requisition_key
+      employee_start_date: employee_start_date
+      requisition_created_date: requisition_created_date
+    derived_columns:
+      time_to_hire_days: date_difference_calendar_days(employee_start_date, requisition_created_date)
+      hire_event_key: HMAC-SHA256(employee_key + employee_start_date)
+    review_required:
+    - Use the owner-approved authoritative hire population from employment_event_resolution;
+      no source is authoritative until approved.
+    - Hires without a requisition remain hires and have null time_to_hire_days.
+  schedule_actual:
+    source_headers:
+      employee_key_from_restricted_map: employee_key_from_restricted_map
+      work_date: work_date
+      scheduled_hours: scheduled_hours
+      actual_hours: actual_hours
+    derived_columns:
+      hours_variance: actual_hours - scheduled_hours
+    grain: employee_key x work_date x source_record_key until overlapping-export reconciliation
+      is approved
+    review_required:
+    - Record each export's covered date range and extract identifier; do not sum duplicate
+      rows until overlapping windows and legitimate same-day multiple shifts are distinguished.
+  time_entry:
+    source_headers:
+      employee_key_from_restricted_map: employee_key_from_restricted_map
+      entry_date: entry_date
+      entry_type_code: entry_type_code
+      hours: hours
+      reported_date: reported_date
+    derived_columns:
+      entry_category: reviewed_versioned_entry_type_code_map
+    review_required:
+    - Map each source entry type code into approved categories using a versioned reference
+      table.
+    - Exclude restricted or unapproved attributes from semantic models.
+    - Record each export's covered date range and extract identifier; reconcile duplicates
+      before aggregating employee_key x entry_date x entry_type_code.
+    - Approve whether entry_date or reported_date drives the fact date
+      and report period.
+  termination_event:
+    source_headers:
+      employee_key_from_restricted_map: employee_key_from_restricted_map
+      termination_date: termination_date
+    derived_columns:
+      termination_event_key: HMAC-SHA256(employee_key + termination_date)
+    review_required:
+    - Deduplicate monthly snapshots on employee key and termination date; review corrected
+      dates instead of counting a second event.
+    - Classification-sensitive values require owner approval and tested primary/complementary
+      disclosure controls before publication.
+  leave_balance_snapshot:
+    source_headers:
+      employee_key_from_restricted_map: employee_key_from_restricted_map
+      leave_type: leave_type
+      current_accrued_hours: current_accrued_hours
+      hours_taken_ytd: hours_taken_ytd
+      hours_scheduled: hours_scheduled
+      hours_remaining: hours_remaining
+    review_required:
+    - Confirm whether balances are hours, days, or mixed by worker group.
+    - The initial measure is annual leave only; do not sum multiple leave types into
+      one total.
+employment_event_resolution:
+  source_preference: owner-approved validated hire actions; employee-snapshot fallback
+    only with complete historical coverage and owner approval
+  event_key: HMAC-SHA256(employee_key + approved_employee_start_date)
+  deduplicate_across_monthly_snapshots: true
+  rehire_rule: distinct employment episodes by approved start date; confirm identity
+    changes with the owner
+  status: blocked_until_authority_action_codes_and_correction_policy_approved
+  corrections: Resolve an approved stable episode identity in restricted Silver before
+    deriving keys; a corrected start date must replace the prior version, not create
+    a rehire. Ambiguous identity is quarantined.
+export_manifest:
+  required_per_file:
+  - source_name
+  - extract_id
+  - extracted_at_utc
+  - covered_start_date
+  - covered_end_date
+  - snapshot_month_end
+  - is_complete_snapshot
+  - row_count
+  - completeness_evidence
+  reject_or_quarantine_when_missing: any required field applicable to the source;
+    snapshot_month_end and is_complete_snapshot apply only to snapshot exports
+  overlap_handling: reconcile_same_business_key_across_extracts_before_aggregation
+  snapshot_completeness: Require expected source and period, coverage, parsed row
+    count matching manifest, and independent completeness evidence (producer control
+    total or owner attestation). Matching row counts alone are insufficient.
+  zero_row_snapshot: Valid only with explicit complete-empty attestation; missing
+    snapshot is never zero.
+requisition_status_resolution:
+  mapping_file: owner_approved_requisition_status_codes
+  normalized_values:
+  - open
+  - filled
+  - closed
+  - other
+overlap_resolution:
+  status: design_only_release_blocker
+  required_lineage:
+  - extract_id
+  - source_record_key
+  - source_revision
+  - covered_start_date
+  - covered_end_date
+  rules:
+  - Resolve repeated versions by approved stable source record key and revision, preserving
+    legitimate multiple shifts/time entries on the same day.
+  - Identical values alone do not establish duplicate identity. Without stable keys
+    or approved nonoverlapping export partitions, quarantine ambiguous overlap.
+  - Aggregate reconciled schedule rows to employee_key x work_date and time entries
+    to employee_key x entry_date x entry_type_code separately; never join raw facts
+    together.
+  - Time entry hours may overlap scheduled/actual hours and other absence categories;
+    do not add them to actual hours or infer absence from variance.

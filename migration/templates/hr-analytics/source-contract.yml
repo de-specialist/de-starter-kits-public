@@ -1,0 +1,237 @@
+version: 1
+template_status: design_only
+source_system: generic_hr_export_contract
+source_values_in_repository: false
+security:
+  classification: restricted_hr
+  raw_layer_access: hr_data_engineering_only
+  published_audience: separate_leadership_aggregate_and_hr_analyst_detail_models
+  employee_detail: pseudonymous_only_in_restricted_analyst_model
+  restricted_or_unapproved_attributes: excluded
+  classification_sensitive_values: owner_approval_required
+  key_strategy: HMAC-SHA256 with a secret held outside the repository and warehouse
+    outputs
+  leadership_release_gate: 'BLOCKED: primary and complementary suppression must be
+    implemented and independently tested'
+sources:
+  employee_snapshot:
+    grain: employee_key x snapshot_month_end
+    date_semantics: snapshot date is supplied by the export/run manifest, not inferred
+      from file modification time
+    source_limitation: Historical completeness and event semantics require independent
+      verification before deployment.
+    restricted_or_unapproved_attributes: excluded
+    source_header_allowlist:
+    - worker_status
+    - employee_key_from_restricted_map
+    - company
+    - location_hierarchy
+    - location
+    - department
+    - job_title
+    - employee_type
+    - employee_start_date
+    - alternate_start_date
+    normalized_column_allowlist:
+    - worker_status
+    - employee_key_from_restricted_map
+    - company
+    - location_hierarchy
+    - location
+    - department
+    - job_title
+    - employee_type
+    - employee_start_date
+    - alternate_start_date
+    header_policy: Canonical example columns only; deployment adapters must define
+      and validate their own approved mappings.
+  time_entry:
+    grain: employee_key x entry_date x entry_type_code after duplicate source rows
+      are reconciled
+    restricted_or_unapproved_attributes: excluded
+    source_header_allowlist:
+    - employee_key_from_restricted_map
+    - entry_date
+    - entry_type_code
+    - hours
+    - reported_date
+    normalized_column_allowlist:
+    - employee_key_from_restricted_map
+    - entry_date
+    - entry_type_code
+    - hours
+    - reported_date
+    header_policy: Canonical example columns only; deployment adapters must define
+      and validate their own approved mappings.
+  schedule_actual:
+    grain: employee_key x work_date after source-record and overlapping-export reconciliation
+    restricted_or_unapproved_attributes: excluded
+    source_header_allowlist:
+    - employee_key_from_restricted_map
+    - work_date
+    - scheduled_hours
+    - actual_hours
+    normalized_column_allowlist:
+    - employee_key_from_restricted_map
+    - work_date
+    - scheduled_hours
+    - actual_hours
+    header_policy: Canonical example columns only; deployment adapters must define
+      and validate their own approved mappings.
+  requisition_snapshot:
+    grain: requisition_key x snapshot_month_end
+    date_semantics: snapshot month-end is supplied by the export/run manifest
+    restricted_or_unapproved_attributes: excluded
+    source_header_allowlist:
+    - requisition_key
+    - job_title
+    - requisition_status
+    - number_of_openings
+    - applicant_count
+    - hired_applicant_count
+    - requisition_created_date
+    - closed_date
+    - department
+    normalized_column_allowlist:
+    - requisition_key
+    - job_title
+    - requisition_status
+    - number_of_openings
+    - applicant_count
+    - hired_applicant_count
+    - requisition_created_date
+    - closed_date
+    - department
+    header_policy: Canonical example columns only; deployment adapters must define
+      and validate their own approved mappings.
+  time_to_hire:
+    grain: one resolved employment episode after corrected start dates are reconciled
+    restricted_or_unapproved_attributes: excluded
+    metric_contract: optional enrichment of approved hire episodes; missing requisition
+      yields null duration, not a lost hire
+    source_header_allowlist:
+    - employee_key_from_restricted_map
+    - requisition_key
+    - employee_start_date
+    - requisition_created_date
+    normalized_column_allowlist:
+    - employee_key_from_restricted_map
+    - requisition_key
+    - employee_start_date
+    - requisition_created_date
+    header_policy: Canonical example columns only; deployment adapters must define
+      and validate their own approved mappings.
+  hire_action_event:
+    grain: employee_key x effective_date x approved_hire_action
+    restricted_or_unapproved_attributes: excluded
+    source_limitation: Historical completeness and event semantics require independent
+      verification before deployment.
+    source_header_allowlist:
+    - employee_key_from_restricted_map
+    - action_created_date
+    - source_hr_action_code
+    - action_effective_date
+    normalized_column_allowlist:
+    - employee_key_from_restricted_map
+    - action_created_date
+    - source_hr_action_code
+    - action_effective_date
+    header_policy: Canonical example columns only; deployment adapters must define
+      and validate their own approved mappings.
+  termination_event:
+    grain: one resolved termination_event_key after repeated exports and corrected
+      dates are reconciled
+    deduplication: count one event across monthly snapshots; review corrections to
+      termination_date before changing the event key
+    restricted_or_unapproved_attributes: excluded
+    source_header_allowlist:
+    - employee_key_from_restricted_map
+    - termination_date
+    normalized_column_allowlist:
+    - employee_key_from_restricted_map
+    - termination_date
+    header_policy: Canonical example columns only; deployment adapters must define
+      and validate their own approved mappings.
+  leave_balance_snapshot:
+    grain: employee_key x leave_type x snapshot_month_end
+    date_semantics: snapshot month-end is supplied by the export/run manifest
+    restricted_or_unapproved_attributes: excluded
+    source_header_allowlist:
+    - employee_key_from_restricted_map
+    - leave_type
+    - current_accrued_hours
+    - hours_taken_ytd
+    - hours_scheduled
+    - hours_remaining
+    normalized_column_allowlist:
+    - employee_key_from_restricted_map
+    - leave_type
+    - current_accrued_hours
+    - hours_taken_ytd
+    - hours_scheduled
+    - hours_remaining
+    header_policy: Canonical example columns only; deployment adapters must define
+      and validate their own approved mappings.
+unresolved_source_decisions:
+- Confirm which extracts are authoritative when multiple reports contain the same
+  subject area, including whether validated hire actions or the employee snapshot
+  define the hire event population.
+- Confirm effective snapshot dates, complete-snapshot guarantees, and whether late
+  corrections replace prior periods.
+- Approve employee status mapping, rehire identity rules, transfer handling, and termination-date
+  boundaries.
+- Approve entry-type mapping for absence, overtime, ordinary time, and paid leave.
+- Decide how to handle corrected termination dates and same-day duplicate termination
+  rows.
+- Confirm the published small-group suppression threshold and whether exact dates
+  are permitted in the HR analyst detail model.
+- Confirm whether applicant-stage records exist at candidate grain; requisition-level
+  counts alone do not support a full candidate-funnel fact.
+export_manifest:
+  required_per_file:
+  - source_name
+  - extract_id
+  - extracted_at_utc
+  - covered_start_date
+  - covered_end_date
+  - snapshot_month_end
+  - is_complete_snapshot
+  - row_count
+  - completeness_evidence
+  reject_or_quarantine_when_missing: any required field applicable to the source;
+    snapshot_month_end and is_complete_snapshot apply only to snapshot exports
+  overlap_handling: reconcile_same_business_key_across_extracts_before_aggregation
+  snapshot_completeness: Require expected source and period, coverage, parsed row
+    count matching manifest, and independent completeness evidence (producer control
+    total or owner attestation). Matching row counts alone are insufficient.
+  zero_row_snapshot: Valid only with explicit complete-empty attestation; missing
+    snapshot is never zero.
+data_provenance: Newly authored public mock design; no source export inventory.
+
+fixture_input_policy:
+  stage: normalized_synthetic_after_restricted_key_mapping
+  employee_key: replaces employee_key_from_restricted_map; never a raw identifier
+  rules: All source columns are required except listed optional_source_columns. Derived columns are required; no other columns are allowed.
+  derived_column_provenance: Snapshot dates come from the manifest; event keys and termination dates follow the mapping; entry_category comes from the reviewed versioned entry-type map.
+  sources:
+    employee_snapshot:
+      optional_source_columns: ['location_hierarchy', 'alternate_start_date']
+      required_derived_columns: ['snapshot_month_end', 'termination_date']
+    requisition_snapshot:
+      optional_source_columns: []
+      required_derived_columns: ['snapshot_month_end']
+    schedule_actual:
+      optional_source_columns: []
+      required_derived_columns: []
+    time_entry:
+      optional_source_columns: []
+      required_derived_columns: ['entry_category']
+    leave_balance_snapshot:
+      optional_source_columns: []
+      required_derived_columns: ['snapshot_month_end']
+    time_to_hire:
+      optional_source_columns: []
+      required_derived_columns: ['hire_event_key']
+    termination_event:
+      optional_source_columns: []
+      required_derived_columns: ['snapshot_month_end', 'termination_event_key']

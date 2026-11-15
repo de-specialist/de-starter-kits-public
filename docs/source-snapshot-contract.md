@@ -33,12 +33,12 @@ The loader performs full table replacement (`write_disposition="replace"`). It d
 - **Loader-enforced:** Only `postgresql+psycopg://` is accepted. Multi-host URLs and caller `options` / `connect_timeout` overrides fail closed.
 - **Loader-enforced:** Connections set and verify `default_transaction_read_only=on`, a 60-second statement timeout, a 10-second lock timeout, and a 10-second libpq connect timeout. Use a least-privilege SELECT-only role and prefer base tables.
 - **Loader-enforced:** Empty-source preflight is a bounded `SELECT 1 … LIMIT 1` per selected table, not a full `COUNT(*)`. Extraction row counts are application-counted yielded rows, not an independent proof of source size.
-- **Loader-enforced (negative):** Until the snapshot guard below is wired in, the loader does **not** set repeatable read, does not hold one transaction across inventory → preflight → extraction, and does not capture a PostgreSQL snapshot/export marker. A table can change between those steps.
+- **Loader-enforced:** PostgreSQL loads now require either the exported-snapshot guard or explicit `--acknowledge-unverified-source-snapshot`. Guarded runs hold one repeatable-read, read-only exported snapshot across inventory, preflight, reflection, and dlt extraction; failure to confirm stops before destination loading. Acknowledged unguarded runs are recorded as consistency-unverified.
 - **Operator process:** Agree a maintenance window or platform-native snapshot/export with the source owner when consistency matters; verify that marker through the platform's own controls, then extract from that frozen source. Never place raw snapshot IDs in manifests.
 
-## PostgreSQL snapshot guard (implemented offline; not yet wired into the loader)
+## PostgreSQL snapshot guard (wired into the loader; warehouse execution remains unverified)
 
-`migration/postgres_snapshot_guard.py` provides a fail-closed guard for PostgreSQL. Until the loader call sites below are integrated, the **Loader-enforced (negative)** statement above remains true, and every PostgreSQL run must still follow the operator gate. That gate is a manual process today: the CLI does not yet refuse unacknowledged PostgreSQL loads.
+`migration/postgres_snapshot_guard.py` provides a fail-closed guard for PostgreSQL. The CLI exposes `--enable-postgres-snapshot-guard` and `--acknowledge-unverified-source-snapshot`; it refuses a real PostgreSQL load unless one is selected. Guarded runs record sanitized source consistency evidence in the private run manifest. The guard has offline tests, but no live PostgreSQL or warehouse run has verified this integration.
 
 ### Research findings (pinned clients: psycopg 3.3.6, SQLAlchemy 2.1.6, dlt 1.32.0)
 
@@ -74,9 +74,9 @@ Failure states persist: once a guard fails, later `bind`/`confirm` calls are ref
 
 **Privacy:** The raw identifier and `pg_current_snapshot()` text stay in process memory and are cleared on confirm, failure, and close. They never appear in `repr`, evidence, or error messages. Comparisons use HMAC-SHA256 with a random key created for each guard, and the digests are not persisted. Driver exceptions, which can echo the identifier, are replaced with fixed-message `SnapshotGuardError` codes raised after the handler, so no driver exception is chained as `__cause__` or `__context__`. The raw identifier is also cleared from local variables before an error propagates, so locals-capturing error reporters do not record it.
 
-### Integration hooks required in `migration/run_migration.py` (owned by the migration-core slice)
+### Loader integration in `migration/run_migration.py`
 
-0. Before any source connection, pipeline state, or manifest is created for a real load, call `require_operator_gate(sql_source_family(backend), acknowledged=args.acknowledge_unverified_source_snapshot, guard_enabled=...)`. If PostgreSQL runs without the guard and without the new `--acknowledge-unverified-source-snapshot` flag, the run stops with `source_snapshot_unverifiable_not_acknowledged`. The flag is rejected for CSV, SQLite, and guarded runs. Acknowledged runs record `unsupported_source_evidence(acknowledged=True)`, which is never consistency-ready. This restores a fail-closed gate that an earlier, unmerged revision had.
+0. Before pipeline state or a manifest is created for a real load, `require_operator_gate` checks the SQL backend and operator choice. PostgreSQL without the guard requires `--acknowledge-unverified-source-snapshot`; the flag is rejected for CSV, SQLite, and guarded runs. Acknowledged runs record `unsupported_source_evidence(acknowledged=True)`, which is never consistency-ready.
 1. For `postgresql+psycopg` sources, create the guard and call `open()` with `engine.raw_connection()` before the first inventory query. Call `attach(engine)` before inventory and preflight, so those steps also read the snapshot.
 2. Pass `engine_adapter_callback=guard.attach` (or keep the engine already attached) to `sql_database` in `make_sql_source`. Keep dlt's `sqlalchemy` backend: backends that open their own connections (for example `connectorx`) and any other `raw_connection()` reads bypass the `begin` hook. `confirm()` only proves that at least one transaction bound, not that every read did.
 3. Call `guard.confirm()` after dlt extraction and before normalize/load. If it raises, stop with a fixed reason code and do not load anything.

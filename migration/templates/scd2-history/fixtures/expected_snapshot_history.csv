@@ -1,0 +1,7 @@
+customer_key,tier,region,is_deleted,valid_from,valid_to,is_current,effective_basis,observation_grain,source_recorded_at
+MOCK-S001,bronze,north,false,2026-01-31,2026-03-31,false,snapshot_observed,month,2026-01-31
+MOCK-S001,gold,north,false,2026-03-31,,true,snapshot_observed,month,2026-03-31
+MOCK-S002,silver,south,false,2026-01-31,2026-03-31,false,snapshot_observed,month,2026-01-31
+MOCK-S002,,,true,2026-03-31,2026-04-30,false,snapshot_observed,month,2026-03-31
+MOCK-S002,silver,south,false,2026-04-30,,true,snapshot_observed,month,2026-04-30
+MOCK-S003,bronze,east,false,2026-02-28,,true,snapshot_observed,month,2026-02-28

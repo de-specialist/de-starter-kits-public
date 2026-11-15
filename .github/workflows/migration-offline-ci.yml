@@ -6,6 +6,12 @@ concurrency:
 
 # Sole owner of the migration/tests suite. Repository script tests run
 # scripts/tests only, so each suite runs once per pull request.
+#
+# The suite is split into one shard per test module name. The plan job derives
+# the shard list from the checked-out tree with unittest's own discovery rules,
+# so a new test module gets a shard without editing this file and no module can
+# be left out. Shards need no credentials, upload no artifacts and only read
+# the locked-venv cache.
 on:
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
@@ -22,12 +28,81 @@ permissions:
   contents: read
 
 jobs:
-  offline-tests:
+  plan:
+    name: Plan offline test shards
     if: ${{ !github.event.pull_request.draft }}
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 5
+    outputs:
+      patterns: ${{ steps.plan.outputs.patterns }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      # Standard library only: mirrors unittest discovery from the suite root
+      # (test*.py files in the start directory and in its package directories).
+      # Same-named modules in different packages share one shard, because each
+      # shard selects by file name. Output is sorted, so the plan is a pure
+      # function of the tree.
+      - name: List test modules
+        id: plan
+        run: |
+          python3 - <<'PY'
+          import fnmatch
+          import json
+          import os
+          import re
+          import sys
+
+          START = "migration/tests"
+          SAFE = re.compile(r"test[A-Za-z0-9_]*\.py")
+
+          names = set()
+          unsafe = []
+          pending = [START]
+          visited = set()
+          while pending:
+              directory = pending.pop()
+              real_directory = os.path.realpath(directory)
+              if real_directory in visited:
+                  continue
+              visited.add(real_directory)
+              for entry in sorted(os.listdir(directory)):
+                  path = os.path.join(directory, entry)
+                  if os.path.isdir(path):
+                      if os.path.isfile(os.path.join(path, "__init__.py")):
+                          pending.append(path)
+                  elif fnmatch.fnmatch(entry, "test*.py"):
+                      if SAFE.fullmatch(entry):
+                          names.add(entry)
+                      else:
+                          unsafe.append(path)
+
+          if unsafe:
+              sys.exit(f"::error::Test module names must match {SAFE.pattern}: {sorted(unsafe)}")
+          if not names:
+              sys.exit(f"::error::No test modules found under {START}")
+
+          patterns = sorted(names)
+          print(f"{len(patterns)} shards:", *patterns, sep="\n  ")
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as output:
+              output.write("patterns=" + json.dumps(patterns) + "\n")
+          PY
+
+  shards:
+    name: Offline tests (${{ matrix.pattern }})
+    needs: plan
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      max-parallel: 16
+      matrix:
+        pattern: ${{ fromJSON(needs.plan.outputs.patterns) }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
       - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7
         with:
           python-version: '3.11'
@@ -40,5 +115,26 @@ jobs:
       - name: Install hash-locked migration test dependencies
         if: steps.venv.outputs.cache-hit != 'true'
         run: python -m pip install --disable-pip-version-check --require-hashes -r migration/tests-requirements-lock.txt
+      # The pattern reaches the shell through the environment, never by
+      # interpolation into the script.
       - name: Run offline migration tests
-        run: CI=true python -m unittest discover -s migration/tests -v
+        env:
+          TEST_PATTERN: ${{ matrix.pattern }}
+        run: CI=true python -m unittest discover -s migration/tests -v -p "$TEST_PATTERN"
+
+  # Single stable check for branch protection: passes only when the plan and
+  # every shard passed. Keeps the job id the unsharded workflow used.
+  offline-tests:
+    name: offline-tests
+    if: ${{ always() && !github.event.pull_request.draft }}
+    needs: [plan, shards]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Require every shard to pass
+        env:
+          PLAN_RESULT: ${{ needs.plan.result }}
+          SHARDS_RESULT: ${{ needs.shards.result }}
+        run: |
+          echo "plan: $PLAN_RESULT, shards: $SHARDS_RESULT"
+          [[ "$PLAN_RESULT" == "success" && "$SHARDS_RESULT" == "success" ]]

@@ -13,6 +13,9 @@ on:
       - 'migration/**/*.py'
       - 'migration/examples/**'
       - 'migration/mappings/**'
+      - 'migration/templates/**'
+      - 'migration/**/*.md'
+      - 'migration/*.md'
       - 'migration/requirements.txt'
       - 'migration/requirements-lock.txt'
       - 'migration/tests-requirements.txt'
@@ -56,6 +59,8 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
       - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7
         with:
           python-version: '3.11'
@@ -71,6 +76,17 @@ jobs:
       # migration/tests runs in migration-offline-ci.yml so it runs once per PR.
       - name: Run offline repository script tests
         run: CI=true python -m unittest discover -s scripts/tests -v
+      - name: Check public template content
+        run: >-
+          python3 scripts/check_public_template_content.py .
+          --mock-path 'migration/templates/**/mock/**'
+          --mock-path 'migration/templates/**/fixtures/**'
+      - name: Validate HR synthetic fixtures
+        run: python3 migration/templates/hr-analytics/validate_fixtures.py
+      - name: Check SCD2 history template
+        run: python3 migration/templates/scd2-history/check_template.py
+      - name: Run incremental-ingest template tests
+        run: python3 -m unittest discover -s migration/templates/incremental-ingest/tests -v
       - name: Check migration dependency lock
         run: python scripts/check_dependency_lock.py migration/requirements.txt migration/requirements-lock.txt
       - name: Check migration test dependency lock

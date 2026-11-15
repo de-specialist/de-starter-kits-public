@@ -1,0 +1,7 @@
+source_name,extract_id,extracted_at_utc,covered_start_date,covered_end_date,snapshot_month_end,is_complete_snapshot,row_count,completeness_evidence
+employee_snapshot,MOCK-EMPLOYEE-2032-09,2032-09-30T23:59:59Z,2032-09-01,2032-09-30,2032-09-30,true,3,complete_authored_synthetic_fixture
+employee_snapshot,MOCK-EMPLOYEE-2032-10,2032-10-31T23:59:59Z,2032-10-01,2032-10-31,2032-10-31,true,5,complete_authored_synthetic_fixture
+requisition_snapshot,MOCK-REQUISITION-2032-09,2032-09-30T23:59:59Z,2032-09-01,2032-09-30,2032-09-30,true,1,complete_authored_synthetic_fixture
+requisition_snapshot,MOCK-REQUISITION-2032-10,2032-10-31T23:59:59Z,2032-10-01,2032-10-31,2032-10-31,true,2,complete_authored_synthetic_fixture
+leave_balance_snapshot,MOCK-LEAVE-2032-09,2032-09-30T23:59:59Z,2032-09-01,2032-09-30,2032-09-30,true,1,complete_authored_synthetic_fixture
+leave_balance_snapshot,MOCK-LEAVE-2032-10,2032-10-31T23:59:59Z,2032-10-01,2032-10-31,2032-10-31,true,3,complete_authored_synthetic_fixture

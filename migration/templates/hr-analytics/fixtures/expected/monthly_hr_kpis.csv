@@ -1,0 +1,17 @@
+period,kpi,value,unit,definition,status
+2032-09,turnover_rate,,ratio,Mock scenario: turnover_rate under the documented generic metric rule.,not_computable_missing_snapshot
+2032-10,active_headcount,3,employees,Mock scenario: active_headcount under the documented generic metric rule.,synthetic_fixture
+2032-10,hires,1,employees,Mock scenario: hires under the documented generic metric rule.,synthetic_fixture
+2032-10,terminations,1,employees,Mock scenario: terminations under the documented generic metric rule.,synthetic_fixture
+2032-10,open_requisitions,1,requisitions,Mock scenario: open_requisitions under the documented generic metric rule.,synthetic_fixture
+2032-10,open_positions,4,positions,Mock scenario: open_positions under the documented generic metric rule.,synthetic_fixture
+2032-10,applicants,13,applicants,Mock scenario: applicants under the documented generic metric rule.,synthetic_fixture
+2032-10,hired_applicants,1,applicants,Mock scenario: hired_applicants under the documented generic metric rule.,synthetic_fixture
+2032-10,turnover_rate,0.333333,ratio,Mock scenario: turnover_rate under the documented generic metric rule.,synthetic_fixture
+2032-10,median_time_to_hire,21,calendar_days,Mock scenario: median_time_to_hire under the documented generic metric rule.,synthetic_fixture
+2032-10,scheduled_hours,12,hours,Mock scenario: scheduled_hours under the documented generic metric rule.,synthetic_fixture
+2032-10,actual_hours,11,hours,Mock scenario: actual_hours under the documented generic metric rule.,synthetic_fixture
+2032-10,hours_variance,-1,hours,Mock scenario: hours_variance under the documented generic metric rule.,synthetic_fixture
+2032-10,absence_hours,3,hours,Mock scenario: absence_hours under the documented generic metric rule.,synthetic_fixture_only
+2032-10,absence_rate,0.25,ratio,Mock scenario: absence_rate under the documented generic metric rule.,blocked_pending_source_and_report_validation
+2032-10,annual_leave_hours_remaining,107,hours,Mock scenario: annual_leave_hours_remaining under the documented generic metric rule.,synthetic_only_units_pending_approval

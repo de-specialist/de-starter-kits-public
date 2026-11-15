@@ -1,18 +1,20 @@
-"""Command-line interface for the offline, plan-only Silver scaffolder.
+"""Command-line interface for the offline Silver scaffolder.
 
     python migration/scaffold_silver.py --edition bigquery --workspace <client-workspace> \
         --source-id <alias> --mapping-file <mapping.json> --inventory-file <dry-run.json> \
         --run-manifest <run_id>.json --source-binding-id <alias> --max-evidence-age-hours 72 \
-        --dry-run
+        [--dry-run]
 
 Output is one deterministic JSON object on stdout with fixed reason codes, the edition,
 canonical table names, and project-relative planned paths. It never prints absolute paths,
 input values, Bronze names, fingerprints, file contents, or exception text.
 
-This CLI never writes. `--dry-run` reports `plan_only` (never `ready`) or `refused`. Without
-`--dry-run`, the same read-only preflight runs and then the run refuses with
-`final_generation_gated`: staging, sealing, and atomic no-replace publication stay disabled
-until atomic workspace publication lands. There is no update, force, or merge mode.
+`--dry-run` never writes and reports `plan_only` or `refused`. Without `--dry-run`, the same
+read-only preflight runs and then `scaffold.publisher` creates the output directory exactly
+once: private staging, exclusive file creation, fsync and hash verification, then an atomic
+no-replace directory rename. It reports `published` or `refused`. An existing output or stage
+path, a symlink, or a platform without an atomic no-replace rename refuses; nothing is ever
+overwritten, merged, or removed. There is no update, force, merge, or cleanup mode.
 """
 
 from __future__ import annotations
@@ -26,18 +28,22 @@ from datetime import datetime
 from . import reasons as R
 from .inputs import SOURCE_BINDING_ID, validate_inputs
 from .plan import EDITIONS, ScaffoldPlan, build_plan, render_outputs, resolve_renderer
+from .publisher import PublishResult, publish
 from .reasons import Refusal
 from .workspace import EDITION_PROJECTS, check_collisions, check_workspace
 
 
 PROG = "scaffold_silver.py"
 EXIT_PLAN_ONLY = 0
+EXIT_PUBLISHED = 0
 EXIT_REFUSED = 1
 EXIT_USAGE = 2
 EXIT_INTERNAL = 3
+# The complete output was published, but restoring editable modes or syncing did not finish.
+EXIT_PUBLISHED_INCOMPLETE = 4
 SOURCE_ID = re.compile(r"[a-z][a-z0-9_]{0,39}")
 MAX_EVIDENCE_AGE_HOURS = 24 * 366
-GATES = (R.FINAL_GENERATION_GATED,)
+GATES: tuple[str, ...] = ()  # no remaining core gate; the key is kept for report stability
 
 _KNOWN_FLAGS = frozenset({
     "--edition", "--workspace", "--source-id", "--mapping-file", "--inventory-file",
@@ -98,7 +104,8 @@ class _Parser(argparse.ArgumentParser):
 def build_parser() -> argparse.ArgumentParser:
     parser = _Parser(
         prog=PROG,
-        description="Offline Silver starter-model scaffolder. Plan-only; writes nothing.",
+        description=("Offline Silver starter-model scaffolder. Creates the output directory once; "
+                     "never overwrites, merges, or removes. --dry-run writes nothing."),
         allow_abbrev=False,
     )
     parser.add_argument("--edition", type=_edition, required=True, help="bigquery or snowflake.")
@@ -116,12 +123,18 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--max-evidence-age-hours", type=_age_hours,
                         help="Maximum age of the run manifest's finished_at_utc. No default.")
     parser.add_argument("--dry-run", action="store_true",
-                        help="Plan only. Without it the run still refuses: final generation is gated.")
+                        help="Plan only; writes nothing. Without it the output directory is created once.")
     return parser
 
 
-def plan_from_args(args: argparse.Namespace, *, now: datetime | None = None) -> tuple[ScaffoldPlan, bool]:
-    """Run every read-only check in order. Returns (plan, renderer_available) or raises Refusal."""
+def plan_from_args(
+    args: argparse.Namespace, *, now: datetime | None = None
+) -> tuple[ScaffoldPlan, str, dict[str, str] | None]:
+    """Run every read-only check in order.
+
+    Returns (plan, absolute project directory, rendered files or None when the edition
+    renderer is not installed) or raises Refusal. The project directory is never printed.
+    """
     if not isinstance(args.source_id, str) or SOURCE_ID.fullmatch(args.source_id) is None:
         raise Refusal(R.INVALID_SOURCE_ID)
     if args.source_binding_id is not None and SOURCE_BINDING_ID.fullmatch(args.source_binding_id) is None:
@@ -139,47 +152,70 @@ def plan_from_args(args: argparse.Namespace, *, now: datetime | None = None) -> 
     plan = build_plan(evidence, args.source_id)
     check_collisions(project, args.source_id)
     renderer = resolve_renderer(args.edition)
-    if renderer is not None:
-        render_outputs(plan, renderer)  # in memory only: renderer contract + manifest
-    return plan, renderer is not None
+    # In memory only: renderer contract + manifest.
+    files = render_outputs(plan, renderer) if renderer is not None else None
+    return plan, project, files
 
 
-def _report(edition: str, mode: str, code: str | None, plan: ScaffoldPlan | None, renderer: bool) -> dict:
-    refused = code is not None
+def _report(
+    edition: str, mode: str, code: str | None, plan: ScaffoldPlan | None, renderer: bool,
+    outcome: PublishResult | None = None,
+) -> dict:
+    published = outcome is not None and outcome.published
+    if published:
+        status = "published"
+    elif code is not None:
+        status = "refused"
+    else:
+        status = "plan_only"
+    show_plan = plan is not None and status != "refused"
     return {
         "edition": edition,
         "gates": list(GATES),
         "mode": mode,
-        "output_dir": plan.output_dir if plan is not None and not refused else None,
-        "planned_files": list(plan.planned_files) if plan is not None and not refused else [],
+        "output_dir": plan.output_dir if show_plan else None,
+        "planned_files": list(plan.planned_files) if show_plan else [],
         "project_dir": EDITION_PROJECTS[edition][0],
-        "reason_codes": [code] if refused else [],
+        "reason_codes": [code] if code is not None else [],
         "renderer_available": renderer,
-        "status": "refused" if refused else "plan_only",
-        "tables": [table.entity for table in plan.tables] if plan is not None and not refused else [],
-        "writes_performed": False,
+        # True when this run left `.scaffold-staging/<source_id>/` behind for inspection.
+        "staging_retained": outcome is not None and outcome.staging_retained,
+        "status": status,
+        "tables": [table.entity for table in plan.tables] if show_plan else [],
+        "writes_performed": outcome is not None and outcome.touched,
     }
 
 
 def run(argv: list[str] | None = None, *, now: datetime | None = None) -> tuple[int, str, str]:
-    """Return (exit_code, stdout, stderr). Never writes to the filesystem."""
+    """Return (exit_code, stdout, stderr). Writes only in default mode, via `publisher.publish`."""
     try:
         args = build_parser().parse_args(argv)
     except _UsageError as error:
         return EXIT_USAGE, "", f"{PROG}: usage error: {error.message}\n"
-    plan, renderer, code = None, False, None
+    plan, project, files, code, outcome = None, None, None, None, None
     try:
-        plan, renderer = plan_from_args(args, now=now)
+        plan, project, files = plan_from_args(args, now=now)
     except Refusal as refusal:
         code = refusal.code
+    renderer = files is not None
     if args.dry_run:
         report = _report(args.edition, "plan_only", code, plan, renderer)
     else:
-        # Final generation is not implemented. It refuses after the same read-only preflight,
-        # so dry-run and default mode report identical earlier reason codes.
-        report = _report(args.edition, "generate", code or R.FINAL_GENERATION_GATED, plan, renderer)
+        # Default mode runs the same read-only preflight first, so both modes report
+        # identical earlier reason codes; only a fully clean preflight reaches the publisher.
+        if code is None and files is None:
+            code = R.RENDERER_UNAVAILABLE
+        if code is None:
+            prefix = f"{plan.output_dir}/"
+            outcome = publish(project, plan.source_id, {path[len(prefix):]: text for path, text in files.items()})
+            code = outcome.code
+        report = _report(args.edition, "generate", code, plan, renderer, outcome)
     stdout = json.dumps(report, indent=2, sort_keys=True) + "\n"
-    return (EXIT_REFUSED if report["status"] == "refused" else EXIT_PLAN_ONLY), stdout, ""
+    if report["status"] == "refused":
+        return EXIT_REFUSED, stdout, ""
+    if report["reason_codes"]:
+        return EXIT_PUBLISHED_INCOMPLETE, stdout, ""
+    return EXIT_PLAN_ONLY, stdout, ""
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -188,7 +224,7 @@ def main(argv: list[str] | None = None) -> int:
     except SystemExit as exit_request:  # --help
         return int(exit_request.code or 0)
     except Exception:
-        sys.stderr.write(f"{PROG}: internal error; nothing was written.\n")
+        sys.stderr.write(f"{PROG}: internal error; inspect the workspace before retrying.\n")
         return EXIT_INTERNAL
     sys.stdout.write(stdout)
     sys.stderr.write(stderr)

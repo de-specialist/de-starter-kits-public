@@ -1,10 +1,11 @@
-"""Offline, plan-only Silver starter-model scaffolder (backlog 145).
+"""Offline Silver starter-model scaffolder (backlog 145): plan-only dry run and create-only write.
 
 Modules:
 - `reasons`: fixed refusal reason codes.
 - `inputs`: input contract (mapping, dry_run, run_manifest admission, fields, bindings).
 - `plan`: frozen validated plan dataclasses and the edition renderer registry hook.
 - `workspace`: read-only client-workspace and collision checks.
+- `publisher`: create-only staging and atomic no-replace publication (the only writer).
 - `cli`: command-line entry point (`python migration/scaffold_silver.py ...`).
 
 The shared migration modules (`_private_json`, `schema_drift`, `evidence_index`,

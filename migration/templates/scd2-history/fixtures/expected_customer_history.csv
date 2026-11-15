@@ -1,0 +1,13 @@
+customer_key,tier,region,is_deleted,valid_from,valid_to,is_current,effective_basis,observation_grain,source_recorded_at
+MOCK-C001,bronze,north,false,2026-01-05 00:00:00,2026-02-10 00:00:00,false,source_effective,event,2026-01-05 02:00:00
+MOCK-C001,silver,north,false,2026-02-10 00:00:00,,true,source_effective,event,2026-02-10 02:00:00
+MOCK-C002,bronze,south,false,2026-01-10 00:00:00,2026-02-01 00:00:00,false,source_effective,event,2026-01-10 02:00:00
+MOCK-C002,silver,south,false,2026-02-01 00:00:00,,true,source_effective,event,2026-02-20 02:00:00
+MOCK-C003,bronze,east,false,2026-01-01 00:00:00,2026-02-01 00:00:00,false,source_effective,event,2026-01-01 02:00:00
+MOCK-C003,silver,east,false,2026-02-01 00:00:00,2026-03-01 00:00:00,false,source_effective,event,2026-03-15 02:00:00
+MOCK-C003,gold,east,false,2026-03-01 00:00:00,,true,source_effective,event,2026-03-01 02:00:00
+MOCK-C004,bronze,west,false,2026-01-01 00:00:00,2026-02-01 00:00:00,false,source_effective,event,2026-01-01 02:00:00
+MOCK-C004,,,true,2026-02-01 00:00:00,2026-03-01 00:00:00,false,source_effective,event,2026-02-01 02:00:00
+MOCK-C004,silver,west,false,2026-03-01 00:00:00,,true,source_effective,event,2026-03-01 02:00:00
+MOCK-C005,bronze,north,false,2026-01-01 00:00:00,2026-03-01 00:00:00,false,source_effective,event,2026-01-01 02:00:00
+MOCK-C005,gold,north,false,2026-03-01 00:00:00,,true,source_effective,event,2026-03-01 02:00:00

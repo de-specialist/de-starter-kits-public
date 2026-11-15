@@ -16,6 +16,10 @@ SCRIPTS_SUITE = "unittest discover -s scripts/tests"
 MIGRATION_SUITE = "unittest discover -s migration/tests"
 REQUIRED_FIXTURE_PATHS = {
     "migration/examples/**",
+    "migration/templates/**",
+    "migration/**/*.md",
+    "migration/*.md",
+    "scripts/**",
     "migration/mappings/**",
     "editions/Bigquery/models/**",
     "editions/Bigquery/models/migration/**",
@@ -58,6 +62,19 @@ class RepositoryScriptsCIPathTests(unittest.TestCase):
         missing = REQUIRED_FIXTURE_PATHS - workflow_paths(WORKFLOW, "pull_request")
         self.assertFalse(missing, f"pull_request CI omits test input paths: {sorted(missing)}")
 
+    def test_public_template_checks_run_in_ci(self):
+        content = WORKFLOW.read_text(encoding="utf-8")
+        self.assertIn("python3 scripts/check_public_template_content.py .", content)
+        for glob in ("migration/templates/**/mock/**", "migration/templates/**/fixtures/**"):
+            self.assertIn(f"--mock-path '{glob}'", content)
+        self.assertIn("run: python3 migration/templates/scd2-history/check_template.py", content)
+        self.assertIn("run: python3 migration/templates/hr-analytics/validate_fixtures.py", content)
+        self.assertIn("persist-credentials: false", content)
+        self.assertIn(
+            "run: python3 -m unittest discover -s migration/templates/incremental-ingest/tests -v",
+            content,
+        )
+
     def test_published_markdown_inputs_trigger_docs_site_build(self):
         for event in ("pull_request", "push"):
             with self.subTest(event=event):
@@ -91,7 +108,20 @@ class RepositoryScriptsCIPathTests(unittest.TestCase):
             "python -m pip install --disable-pip-version-check --require-hashes -r migration/tests-requirements-lock.txt",
             content,
         )
-        self.assertIn("run: CI=true python -m unittest discover -s migration/tests -v", content)
+        self.assertIn('run: CI=true python -m unittest discover -s migration/tests -v -p "$TEST_PATTERN"',
+            content)
+
+    def test_stable_offline_tests_status_requires_plan_and_all_shards(self):
+        content = MIGRATION_WORKFLOW.read_text(encoding="utf-8")
+        aggregate = re.search(r"(?ms)^  offline-tests:\n(.*?)(?=^  [\w-]+:\n|\Z)", content)
+        self.assertIsNotNone(aggregate)
+        block = aggregate.group(1)
+        self.assertIn("name: offline-tests", block)
+        self.assertIn("always()", block)
+        self.assertIn("needs: [plan, shards]", block)
+        self.assertIn("PLAN_RESULT: ${{ needs.plan.result }}", block)
+        self.assertIn("SHARDS_RESULT: ${{ needs.shards.result }}", block)
+        self.assertIn('[[ "$PLAN_RESULT" == "success" && "$SHARDS_RESULT" == "success" ]]', block)
 
     def test_each_offline_suite_runs_in_exactly_one_workflow(self):
         # Overlapping path filters may start both workflows on one PR, so each

@@ -1,4 +1,4 @@
-"""Fail-closed PostgreSQL source snapshot guard (offline-tested; not wired into the loader yet).
+"""Fail-closed PostgreSQL source snapshot guard used by the migration loader.
 
 Mechanism (PostgreSQL documented behaviour, see docs/source-snapshot-contract.md):
 

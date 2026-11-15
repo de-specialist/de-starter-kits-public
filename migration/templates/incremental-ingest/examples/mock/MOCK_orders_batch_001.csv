@@ -1,0 +1,4 @@
+order_id,customer_id,order_status,order_total,updated_at
+MOCK-O-0001,MOCK-C-01,placed,40.00,2025-03-01T09:00:00Z
+MOCK-O-0002,MOCK-C-02,placed,15.50,2025-03-01T10:30:00Z
+MOCK-O-0003,MOCK-C-01,shipped,99.90,2025-03-02T08:15:00Z

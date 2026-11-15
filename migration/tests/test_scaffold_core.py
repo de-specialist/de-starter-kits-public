@@ -1,4 +1,4 @@
-"""Offline tests for the plan-only Silver scaffolder core .
+"""Offline tests for the Silver scaffolder core (plan, inputs, workspace checks).
 
 All fixtures are SYNTHETIC and live in temporary directories outside the repository. Nothing
 here contacts a source, warehouse, or network, and no credentials or profiles are read.
@@ -105,11 +105,13 @@ class PlanOnlyTests(ScaffoldCase):
         second = self.invoke()[2]
         self.assertEqual(first, second)
 
-    def test_default_mode_refuses_final_generation(self):
+    def test_default_mode_refuses_without_an_installed_renderer(self):
+        """Write mode itself is covered in test_scaffold_publish.py."""
         code, report, _, _ = self.invoke(dry_run=False)
         self.assertEqual(code, cli.EXIT_REFUSED)
-        self.assertEqual(report["reason_codes"], [R.FINAL_GENERATION_GATED])
+        self.assertEqual(report["reason_codes"], [R.RENDERER_UNAVAILABLE])
         self.assertEqual(report["mode"], "generate")
+        self.assertFalse(report["writes_performed"])
         self.assertFalse((self.project / "models" / "migration" / "generated").exists())
         self.assertFalse((self.project / ".scaffold-staging").exists())
 

@@ -1,0 +1,26 @@
+version: 1
+status: draft_until_business_owner_approval
+effective_from: null
+change_control:
+  require_version_bump_for_definition_change: true
+  preserve_prior_results_and_catalog_versions: true
+  approval_reference_required_before_production: true
+metrics:
+  turnover_rate:
+    definition: terminations divided by average opening and closing active headcount
+    aggregation: ratio_of_period_totals
+    period: month
+    source_metric_version: 1
+    status: pending_source_reconciliation
+  time_to_hire_days:
+    definition: employee start date minus requisition created date
+    aggregation: median
+    missing_requisition: count_hire_with_blank_duration
+    status: draft
+  hours_variance:
+    definition: actual hours minus scheduled hours
+    aggregation: sum
+    status: draft
+  absence_rate:
+    definition: null
+    status: blocked_absence_mapping_and_denominator_approval

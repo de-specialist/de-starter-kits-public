@@ -1,0 +1,35 @@
+// DRAFT only. Validate relationships and filter behavior in the deployed model.
+// Point-in-time measures must select exactly one month-end snapshot.
+
+Prior Month Headcount (Analyst) :=
+VAR SelectedMonthEnd = SELECTEDVALUE ( DimDate[MonthEnd] )
+VAR PriorMonthEnd = EOMONTH ( SelectedMonthEnd, -1 )
+RETURN
+    IF (
+        HASONEVALUE ( DimDate[MonthEnd] ),
+        CALCULATE (
+            [Headcount (Analyst)],
+            REMOVEFILTERS ( DimDate ),
+            DimDate[Date] = PriorMonthEnd
+        )
+    )
+
+Hires - Rolling 12 Months (Analyst) :=
+VAR SelectedDate = MAX ( DimDate[Date] )
+RETURN
+    CALCULATE (
+        [Hires (Analyst)],
+        DATESINPERIOD ( DimDate[Date], SelectedDate, -12, MONTH )
+    )
+
+Terminations - Rolling 12 Months (Analyst) :=
+VAR SelectedDate = MAX ( DimDate[Date] )
+RETURN
+    CALCULATE (
+        [Terminations (Analyst)],
+        DATESINPERIOD ( DimDate[Date], SelectedDate, -12, MONTH )
+    )
+
+// Rolling turnover is deliberately omitted until the owner approves whether
+// the denominator uses monthly average headcount, period endpoints, or another
+// workforce-exposure definition.

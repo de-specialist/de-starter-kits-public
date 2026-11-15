@@ -1,0 +1,14 @@
+version: 1
+status: blocked_candidate_stage_source_required
+required_grain: candidate_x_requisition_x_stage_event
+required_fields:
+  - candidate_key_pseudonymous
+  - requisition_key
+  - stage_code
+  - stage_effective_at
+  - event_key
+  - extract_revision
+rules:
+  requisition_level_applicant_totals_are_not_candidate_funnel_events: true
+  deduplicate_stage_events_by_approved_event_key: true
+  conversion_denominator_must_be_named_per_stage: true

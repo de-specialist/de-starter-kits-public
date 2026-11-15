@@ -1,0 +1,49 @@
+# Example tests for the history model and its input. Merge into your edition's schema.yml
+# and rename the MOCK models and columns.
+version: 2
+
+models:
+  - name: stg_mock_customer_changes
+    description: Change records in the SCD2 input contract (see the template README).
+    columns:
+      - name: customer_key
+        data_tests:
+          - not_null
+      - name: effective_at
+        data_tests:
+          - not_null
+      - name: recorded_at
+        data_tests:
+          - not_null
+      - name: effective_basis
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['source_effective', 'snapshot_observed']
+      - name: observation_grain
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['event', 'day', 'week', 'month']
+
+  - name: scd2_customer_history
+    description: >
+      One row per customer version, valid over [valid_from, valid_to). When effective_basis
+      is snapshot_observed, boundaries are snapshot dates and say nothing about the days
+      between snapshots.
+    columns:
+      - name: scd2_key
+        data_tests:
+          - unique
+          - not_null
+      - name: customer_key
+        data_tests:
+          - not_null
+      - name: valid_from
+        data_tests:
+          - not_null
+      - name: is_current
+        data_tests:
+          - not_null

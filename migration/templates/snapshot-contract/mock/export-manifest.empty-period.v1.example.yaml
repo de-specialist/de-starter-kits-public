@@ -1,0 +1,38 @@
+# Export manifest - EXAMPLE of an empty period, format version 1. MOCK values only.
+#
+# MOCK period 2026-02 had no rows. The period is still delivered, with an
+# explicit declaration and no files (rules E1 to E3).
+
+manifest_format_version: 1
+mock_only: true
+
+contract:
+  id: MOCK_widget_readings_snapshot
+  revision: 1
+
+snapshot:
+  snapshot_id: MOCK_widget_readings_2026-02_seq1
+  period: "2026-02"
+  period_start: "2026-02-01"
+  period_end: "2026-03-01"
+  sequence: 1
+  supersedes: null
+  correction_reason: null
+  approved_exception_ref: null
+  as_of_utc: "2026-03-03T02:00:00Z"
+  exported_at_utc: "2026-03-03T02:01:00Z"
+  status: complete
+
+empty_period:
+  declared: true
+  reason_code: no_activity
+
+files: []
+
+totals:
+  row_count: 0
+  source_row_count: 0
+  distinct_key_count: 0
+  control_totals:
+    reading_value_sum: "0.00"
+    reading_value_non_null_count: 0

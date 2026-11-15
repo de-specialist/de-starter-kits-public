@@ -61,9 +61,9 @@ Use two spaces for YAML indentation, descriptive lowercase `snake_case` names fo
 - BigQuery curated models must exclude direct personal identifiers; `stg_users` deliberately drops them.
 - Keep business metric definitions in edition READMEs in sync with SQL.
 
-## Commits and Pull Requests
+## Commits and Merges
 
-Use concise imperative commit subjects (for example, `Add BigQuery customer value mart`). Pull requests should describe the user-facing change, identify which edition is affected, and state the validation performed. Include screenshots for dashboard or other visual changes.
+Use concise imperative commit subjects (for example, `Add BigQuery customer value mart`). Changes to this repository should be committed and merged directly to the target branch without opening a pull request. Keep the user informed about the affected edition and validation performed. Include screenshots for dashboard or other visual changes.
 
 Public CI is credential-free and always uses GitHub-hosted Ubuntu runners. Keep
 cloud acceptance and deployment in a separate private repository. Do not add

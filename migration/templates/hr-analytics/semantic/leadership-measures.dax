@@ -1,0 +1,17 @@
+// DESIGN ONLY: separate aggregate model; publication blocked until tested primary
+// and complementary suppression. No detail relationships or employee keys.
+// Require one month: headcount and turnover denominators are not additive over time.
+Leadership Monthly Headcount :=
+IF ( HASONEVALUE ( DimMonth[MonthEnd] ), SUM ( FactLeadershipMonthlyKPI[Headcount] ) )
+
+Leadership Monthly Hires :=
+SUM ( FactLeadershipMonthlyKPI[HireCount] )
+
+Leadership Monthly Terminations :=
+SUM ( FactLeadershipMonthlyKPI[TerminationCount] )
+
+Leadership Monthly Turnover Rate :=
+IF ( HASONEVALUE ( DimMonth[MonthEnd] ),
+    DIVIDE ( SUM ( FactLeadershipMonthlyKPI[TerminationCount] ),
+        SUM ( FactLeadershipMonthlyKPI[AverageOpeningClosingHeadcount] ) )
+)

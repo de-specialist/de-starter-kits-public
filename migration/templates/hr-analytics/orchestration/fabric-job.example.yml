@@ -1,0 +1,20 @@
+version: 1
+status: manual_on_demand_only
+parameters:
+  source_period: required
+  dry_run: true
+  allow_retained_row_replacement: false
+  strict_schema: true
+stages:
+  - validate_manifest_and_schema
+  - stage_and_quarantine
+  - reconcile_silver_history
+  - build_gold_and_quality_scorecard
+  - compare_expected_outputs
+  - require_release_gate_before_publish
+retry:
+  retry_transient_compute_errors: true
+  retry_data_contract_errors: false
+scheduling:
+  enabled: false
+  approval_required_before_enablement: true

@@ -1,7 +1,7 @@
 version: 2
 # Monthly, one grouped pull request per ecosystem and directory for minor and
-# patch bumps; major bumps stay separate pull requests. This keeps CI runs on the
-# self-hosted laptop runners to a few per month.
+# patch bumps; major bumps stay separate pull requests. This keeps update batches
+# reviewable and avoids unnecessary CI churn.
 updates:
   - package-ecosystem: pip
     directory: /editions/Bigquery

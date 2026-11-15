@@ -1,0 +1,9 @@
+snapshot_month_end,employee_key,company,location,department,worker_status,job_title,employee_type,employee_start_date,termination_date
+2032-09-30,MOCK-WORKER-71,MOCK-ORG-QUARTZ,MOCK-SITE-RED,Mock Assembly,active,Mock Technician,Full-time,2029-04-12,
+2032-09-30,MOCK-WORKER-82,MOCK-ORG-QUARTZ,MOCK-SITE-BLUE,Mock Planning,active,Mock Planner,Part-time,2030-06-17,
+2032-09-30,MOCK-WORKER-93,MOCK-ORG-QUARTZ,MOCK-SITE-RED,Mock Assembly,active,Mock Technician,Full-time,2028-08-09,
+2032-10-31,MOCK-WORKER-71,MOCK-ORG-QUARTZ,MOCK-SITE-RED,Mock Assembly,active,Mock Technician,Full-time,2029-04-12,
+2032-10-31,MOCK-WORKER-82,MOCK-ORG-QUARTZ,MOCK-SITE-BLUE,Mock Planning,active,Mock Planner,Part-time,2030-06-17,
+2032-10-31,MOCK-WORKER-93,MOCK-ORG-QUARTZ,MOCK-SITE-RED,Mock Assembly,terminated,Mock Technician,Full-time,2028-08-09,2032-10-19
+2032-10-31,MOCK-WORKER-64,MOCK-ORG-QUARTZ,MOCK-SITE-RED,Mock Assembly,active,Mock Technician,Full-time,2032-10-08,
+2032-10-31,MOCK-WORKER-71,MOCK-ORG-QUARTZ,MOCK-SITE-RED,Mock Assembly,active,Mock Technician,Full-time,2029-04-12,

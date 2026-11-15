@@ -1,0 +1,4 @@
+order_id,customer_id,order_status,order_total,updated_at,mock_channel
+MOCK-O-0005,MOCK-C-02,cancelled,8.25,2025-03-04T07:00:00Z,web
+MOCK-O-0006,MOCK-C-04,placed,61.00,2025-03-04T09:20:00Z,store
+MOCK-O-0007,MOCK-C-03,placed,12.00,2025-02-27T18:00:00Z,web

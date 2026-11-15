@@ -1,0 +1,243 @@
+# Snapshot source contract - TEMPLATE, format version 1.
+#
+# Agreement between a source owner (who exports period snapshots) and a
+# consumer (who loads them). Every value below is MOCK. Copy the file, replace
+# the values marked ADAPT, and keep the rule ids stable.
+#
+# Dates and timestamps are quoted strings so YAML parsers do not retype them.
+
+contract_format_version: 1
+
+contract:
+  id: MOCK_widget_readings_snapshot   # ADAPT: stable synthetic identifier; keep stable for the life of the feed
+  revision: 1                         # bump on any schema, period or rule change
+  status: template                    # template | draft | agreed | retired
+  mock_only: true                     # set false only on a private, adapted copy
+  effective_from: "2026-01-01"        # first period governed by this revision
+
+parties:                              # roles, never named people
+  source_owner_role: source data owner
+  consumer_role: analytics platform owner
+
+source:
+  label: MOCK_SOURCE                  # ADAPT: neutral label for the exporting system
+  entity: mock_widget_readings        # ADAPT: one entity per contract
+
+snapshot:
+  # The only kind in format version 1. Each snapshot holds every row of exactly
+  # one period as it stood at as_of_utc. Deltas and change streams are out of scope.
+  kind: period_full_replace
+  period:
+    grain: month                      # ADAPT: day | week | month
+    timezone: UTC
+    start: inclusive
+    end: exclusive
+    assignment_column: reading_date   # the column that places a row in a period
+  consistency: single_point_in_time   # all files of one snapshot read at one as_of_utc
+  delivery_due_days_after_period_end: 5       # ADAPT
+  correction_window_days_after_period_end: 45 # ADAPT: after this the period is closed
+  superseded_retention_days: 400              # ADAPT: how long replaced snapshots are kept
+
+delivery:
+  format: csv
+  encoding: UTF-8
+  header: required
+  delimiter: ","
+  line_ending: LF
+  null_representation: ""             # empty unquoted field; no sentinel text
+  file_name_pattern: "{entity}_{period}_seq{sequence}.csv"
+  manifest:
+    format_version: 1
+    file_name: export-manifest.yaml
+    written: last                     # the manifest is the completion marker
+    checksum_algorithm: sha256
+
+schema:
+  primary_key: [reading_id]
+  key_scope: all_periods              # a key belongs to exactly one period
+  unknown_columns: reject_snapshot
+  missing_columns: reject_snapshot
+  column_order: as_listed
+  columns:
+    - {name: reading_id, type: string, nullable: false}
+    - {name: widget_code, type: string, nullable: false}
+    - {name: reading_date, type: date, nullable: false}       # ISO 8601 date
+    - {name: reading_value, type: decimal, nullable: true, scale: 2}
+    - {name: updated_at_utc, type: timestamp, nullable: false} # ISO 8601, Z suffix
+  control_totals:                     # exact decimal comparison, nulls excluded
+    - {name: reading_value_sum, column: reading_value, aggregation: sum}
+    - {name: reading_value_non_null_count, column: reading_value, aggregation: count_non_null}
+
+# What the consumer does with a snapshot. Checks run in the listed rule order and
+# the most severe outcome wins: reject_snapshot > hold_for_review > no_op > accept.
+outcomes:
+  accept: load the snapshot and make it the current one for its period
+  no_op: record the arrival, change nothing
+  hold_for_review: do not load; current data for the period stays; the consumer role decides
+  reject_snapshot: do not load any row; current data for the period stays; the source re-exports
+
+rules:
+  completeness:
+    - id: C1
+      rule: >-
+        A snapshot exists only when its manifest exists with status complete.
+        The manifest is written after every data file. Data files without a
+        complete manifest are never read.
+      on_violation: no_op
+    - id: C2
+      rule: >-
+        Every file listed in the manifest is present with the stated byte size
+        and SHA-256, and the snapshot directory holds no unlisted data file.
+      on_violation: reject_snapshot
+    - id: C3
+      rule: >-
+        The rows counted in each file equal its files[].row_count, their sum
+        equals totals.row_count, and totals.row_count equals
+        totals.source_row_count, the count the source took at as_of_utc.
+      on_violation: reject_snapshot
+    - id: C4
+      rule: >-
+        Every row's assignment column falls in [period_start, period_end).
+        A row for another period rejects the whole snapshot; it is not moved,
+        dropped or loaded.
+      on_violation: reject_snapshot
+    - id: C5
+      rule: >-
+        Every declared control total recomputed from the files equals the
+        manifest value exactly.
+      on_violation: reject_snapshot
+    - id: C6
+      rule: >-
+        Header names and order match schema.columns, and non-nullable columns
+        hold no null.
+      on_violation: reject_snapshot
+    - id: C7
+      rule: >-
+        Periods are contiguous from contract.effective_from. The consumer's
+        complete-through mark is the last period before the first period that
+        has no accepted snapshot. A later period may be loaded, but is not
+        reported as complete while an earlier one is missing.
+      on_violation: hold_for_review
+    - id: C8
+      rule: >-
+        A snapshot is all or nothing. The source never delivers part of a
+        period, and the consumer never loads part of a snapshot.
+      on_violation: reject_snapshot
+
+  late_correction:
+    - id: L1
+      rule: >-
+        A delivered snapshot is immutable. Its files and manifest are never
+        edited or overwritten in place.
+      on_violation: reject_snapshot
+    - id: L2
+      rule: >-
+        A change to a delivered period arrives as a new snapshot of the whole
+        period, with sequence one above the current snapshot, supersedes set
+        to that snapshot's id, and a correction_reason code. It is a full
+        replacement, never a row-level patch.
+      on_violation: reject_snapshot
+    - id: L3
+      rule: >-
+        The current snapshot of a period is the accepted one with the highest
+        sequence. On accepting a correction the consumer replaces all rows of
+        that period in one atomic step, including rows absent from the correction.
+      on_violation: reject_snapshot
+    - id: L4
+      rule: >-
+        A correction is accepted on its own only while as_of_utc is within
+        correction_window_days_after_period_end. After that the period is
+        closed, and a correction needs approved_exception_ref in its manifest.
+      on_violation: hold_for_review
+    - id: L5
+      rule: >-
+        A snapshot whose sequence is at or below the current one for its
+        period is recorded and never applied, whatever order it arrives in.
+      on_violation: no_op
+    - id: L6
+      rule: >-
+        A row that surfaces late belongs to the period of its assignment
+        column. It is delivered by correcting that period, never by placing it
+        in a later period's snapshot (see C4).
+      on_violation: reject_snapshot
+    - id: L7
+      rule: >-
+        Superseded snapshots are kept unchanged for superseded_retention_days
+        so any earlier state of a period can be reproduced.
+      on_violation: hold_for_review
+
+  duplicates:
+    - id: D1
+      rule: >-
+        The primary key is unique across all files of a snapshot. Keys are
+        compared as exact strings, without trimming or case folding. One
+        repeated key rejects the snapshot; the consumer does not pick a row.
+      on_violation: reject_snapshot
+    - id: D2
+      rule: >-
+        A fully identical repeated row is still a duplicate under D1. It is
+        not collapsed silently.
+      on_violation: reject_snapshot
+    - id: D3
+      rule: A null or empty primary key value rejects the snapshot.
+      on_violation: reject_snapshot
+    - id: D4
+      rule: >-
+        Redelivery of a snapshot_id whose manifest and file checksums match
+        the copy already received changes nothing.
+      on_violation: no_op
+    - id: D5
+      rule: >-
+        Redelivery of a snapshot_id with different content, or a different
+        snapshot_id for a period and sequence already received, is rejected.
+        The first arrival stands.
+      on_violation: reject_snapshot
+    - id: D6
+      rule: >-
+        With key_scope all_periods, a key in the current snapshot of one
+        period does not appear in the current snapshot of any other period.
+      on_violation: hold_for_review
+
+  empty_period:
+    - id: E1
+      rule: >-
+        A period with no rows is still delivered, as a manifest with
+        empty_period.declared true, a reason_code, files as an empty list and
+        every count zero.
+      on_violation: reject_snapshot
+    - id: E2
+      rule: >-
+        A missing manifest never means an empty period. Until a manifest
+        arrives the period is missing under C7.
+      on_violation: hold_for_review
+    - id: E3
+      rule: >-
+        Zero rows without empty_period.declared true is rejected, and so is
+        empty_period.declared true with any file or a non-zero count.
+      on_violation: reject_snapshot
+    - id: E4
+      rule: >-
+        An empty snapshot that supersedes a non-empty one removes every row of
+        the period. It follows L2 and L4 and is always reviewed before it is applied.
+      on_violation: hold_for_review
+    - id: E5
+      rule: >-
+        More consecutive empty periods than max_consecutive_empty_periods are
+        reviewed before the latest one is accepted.
+      on_violation: hold_for_review
+
+rule_parameters:
+  max_consecutive_empty_periods: 2    # ADAPT
+  correction_reason_codes:
+    - late_arriving_rows
+    - value_restated
+    - rows_removed
+    - export_defect_fixed
+  empty_period_reason_codes:
+    - no_activity
+    - source_not_operating
+
+change_control:
+  - Any change to this file bumps contract.revision, and both roles agree before it takes effect.
+  - Each manifest states the contract id and revision it was exported under.
+  - A manifest naming an unknown or retired revision is rejected.

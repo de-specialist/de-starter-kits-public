@@ -6,7 +6,7 @@ check. Codes never carry interpolated names, paths, fingerprints, or exception t
 Sources:
 - `docs/scaffolder-contract-proposal.md` sections 3.1, 3.2, 6 (workspace, scope, collisions).
 - `docs/scaffolder-input-contract.md` "Fixed reason codes" (input admission and bindings).
-- Core gates defined by the scaffolder core (this package).
+- Renderer and publication codes defined by the scaffolder core (this package).
 """
 
 from __future__ import annotations
@@ -74,10 +74,22 @@ EVIDENCE_SCHEMA_NOT_MATCHED = "scaffold_evidence_schema_not_matched"
 EVIDENCE_STALE = "scaffold_evidence_stale"
 EVIDENCE_FRESHNESS_UNAVAILABLE = "scaffold_evidence_freshness_unavailable"
 
-# Core gates and renderer contract .
-# Staging, sealing, and atomic no-replace publication (contract 6.2) are not implemented
-# until atomic workspace publication lands; every non-dry run refuses with this.
-FINAL_GENERATION_GATED = "final_generation_gated"
+# Renderer contract and publication (scaffold/publisher.py).
+# Default mode needs an installed edition renderer.
+RENDERER_UNAVAILABLE = "renderer_unavailable"
+# No atomic no-replace directory rename on this platform or filesystem. Never falls back.
+ATOMIC_PUBLISH_UNSUPPORTED = "atomic_publish_unsupported"
+# Creating, writing, or syncing the private stage failed; the stage is left in place.
+STAGING_FAILED = "staging_failed"
+# The staged tree did not match the rendered output immediately before publication.
+STAGING_VERIFICATION_FAILED = "staging_verification_failed"
+# The workspace could not be opened safely, or the no-replace rename failed.
+PUBLISH_FAILED = "publish_failed"
+# The complete output was published, but restoring editable modes or syncing failed.
+PUBLISHED_FINALIZE_INCOMPLETE = "published_finalize_incomplete"
+# A directory was published at the output path, but it is not the verified stage directory
+# (the stage name was re-pointed between final verification and the rename). Do not trust it.
+PUBLISHED_OUTPUT_UNVERIFIED = "published_output_unverified"
 # A registered edition renderer returned output that breaks the renderer contract.
 RENDERER_OUTPUT_INVALID = "renderer_output_invalid"
 
@@ -99,5 +111,7 @@ ALL_CODES = frozenset({
     UNSAFE_INVENTORY_IDENTIFIER,
     SYMLINK_REFUSED, NOT_REGULAR_FILE, OUTPUT_EXISTS, STAGING_EXISTS, STAGING_ROOT_INVALID,
     *INPUT_CONTRACT_CODES,
-    FINAL_GENERATION_GATED, RENDERER_OUTPUT_INVALID,
+    RENDERER_UNAVAILABLE, RENDERER_OUTPUT_INVALID, ATOMIC_PUBLISH_UNSUPPORTED, STAGING_FAILED,
+    STAGING_VERIFICATION_FAILED, PUBLISH_FAILED, PUBLISHED_FINALIZE_INCOMPLETE,
+    PUBLISHED_OUTPUT_UNVERIFIED,
 })

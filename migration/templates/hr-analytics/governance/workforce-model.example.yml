@@ -1,0 +1,17 @@
+version: 1
+status: design_only
+person_identity:
+  key: pseudonymous_person_key
+  secret_mapping_location: external_restricted_store
+employment_episode:
+  grain: person_key_x_employment_start_event
+  required_source_evidence: stable_employment_event_id_and_effective_dates
+  rehire_policy: pending_owner_approval
+  multiple_concurrent_employments: preserve_separate_episodes
+history:
+  monthly_snapshot_fact: supported_by_template
+  daily_effective_dimension: blocked_until_effective_dated_source_exists
+  attribute_changes: never_infer_between_monthly_snapshots
+movement_bridge:
+  categories: [opening_headcount, hires, terminations, closing_headcount]
+  transfers: blocked_until_organization_effective_dates_are_available

@@ -1,0 +1,15 @@
+status: design_only
+groups:
+  hr_data_engineering: null
+  hr_analyst: null
+  hr_leadership: null
+boundaries:
+  raw_and_silver: hr_data_engineering_only
+  pseudonymous_employee_detail: hr_analyst_only_after_review
+  leadership: preaggregated_suppressed_outputs_only
+rules:
+  never_infer_group_ids: true
+  no_workspace_edit_for_report_consumers: true
+  verify_item_and_sql_endpoint_permissions: true
+  pseudonymous_data_remains_personal_data: true
+release_gate: named_groups_and_permission_review_required

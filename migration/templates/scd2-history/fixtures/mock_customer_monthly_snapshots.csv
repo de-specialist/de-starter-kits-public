@@ -1,0 +1,11 @@
+snapshot_date,customer_key,tier,region
+2026-01-31,MOCK-S001,bronze,north
+2026-01-31,MOCK-S002,silver,south
+2026-02-28,MOCK-S001,bronze,north
+2026-02-28,MOCK-S002,silver,south
+2026-02-28,MOCK-S003,bronze,east
+2026-03-31,MOCK-S001,gold,north
+2026-03-31,MOCK-S003,bronze,east
+2026-04-30,MOCK-S001,gold,north
+2026-04-30,MOCK-S002,silver,south
+2026-04-30,MOCK-S003,bronze,east

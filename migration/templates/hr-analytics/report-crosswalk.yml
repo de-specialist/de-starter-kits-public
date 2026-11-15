@@ -1,0 +1,83 @@
+version: 1
+source_basis: newly_authored_mock_report_design
+semantic_formula_validation: pending
+outputs:
+- report: Mock HR view 1
+  target_facts:
+  - WorkforceSnapshot
+  - RequisitionSnapshot
+  - HireEvent
+  - TerminationEvent
+  draft_measures:
+  - Headcount (Analyst)
+  - Open Requisitions (Analyst)
+  - Open Positions (Analyst)
+  - Applicants (Analyst)
+  - Hired Applicants (Analyst)
+  - Hires (Analyst)
+  - Median Time To Hire (Days)
+  - Terminations (Analyst)
+  - Monthly Turnover Rate (Analyst)
+  formula_status: pending_report_reconciliation
+  required_validation: Validate the proposed measures against independently approved
+    business definitions.
+  proposed_pages:
+  - Mock summary 1
+- report: Mock HR view 2
+  target_facts:
+  - WorkforceSnapshot
+  - TerminationEvent
+  - TimeEntry
+  draft_measures:
+  - Headcount (Analyst)
+  - Terminations (Analyst)
+  - Monthly Turnover Rate (Analyst)
+  - Absence Hours (Analyst)
+  formula_status: pending_report_reconciliation
+  required_validation: Validate the proposed measures against independently approved
+    business definitions.
+  proposed_pages:
+  - Mock summary 2
+- report: Mock HR view 3
+  target_facts:
+  - WorkforceSnapshot
+  - RequisitionSnapshot
+  - HireEvent
+  - TerminationEvent
+  draft_measures:
+  - Headcount (Analyst)
+  - Open Requisitions (Analyst)
+  - Open Positions (Analyst)
+  - Applicants (Analyst)
+  - Hired Applicants (Analyst)
+  - Hires (Analyst)
+  - Median Time To Hire (Days)
+  - Terminations (Analyst)
+  - Monthly Turnover Rate (Analyst)
+  formula_status: pending_report_reconciliation
+  required_validation: Validate the proposed measures against independently approved
+    business definitions.
+  proposed_pages:
+  - Mock summary 3
+- report: Mock HR view 4
+  target_facts:
+  - ScheduleActual
+  - TimeEntry
+  - LeaveBalanceSnapshot
+  draft_measures:
+  - Scheduled Hours (Analyst)
+  - Actual Hours (Analyst)
+  - Hours Variance (Analyst)
+  - Absence Hours (Analyst)
+  - Annual Leave Hours Remaining (Analyst)
+  - Annual Leave Hours Accrued (Analyst)
+  - Annual Leave Hours Taken YTD (Analyst)
+  - Annual Leave Hours Scheduled (Analyst)
+  formula_status: blocked_absence_formulas_pending_approval; listed_measures_are_supporting_only
+  required_validation: Validate the proposed measures against independently approved
+    business definitions.
+  proposed_pages:
+  - Mock summary 4
+limitations:
+- Proposed views are generic design examples, not an inventory of existing reports.
+- No report binaries or report data are included.

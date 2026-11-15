@@ -1,0 +1,23 @@
+version: 1
+status: synthetic_acceptance_pending
+required_cases:
+  - one_complete_snapshot_month
+  - incomplete_snapshot_returns_blank
+  - multi_month_snapshot_selection_returns_blank
+  - corrected_event_quarantined_without_winner_rule
+  - duplicate_event_not_double_counted
+  - conflicting_retained_history_blocks_metric
+  - missing_absence_map_blocks_absence_metrics
+  - primary_and_complementary_suppression_cases
+  - monthly_report_values_match_expected_fixture
+report_metrics:
+  - report: workforce_and_turnover
+    expected_file: fixtures/expected/monthly_hr_kpis.csv
+  - report: talent_acquisition
+    expected_file: fixtures/expected/monthly_hr_kpis.csv
+  - report: schedule_and_absence
+    expected_file: fixtures/expected/monthly_hr_kpis.csv
+approval:
+  business_owner: null
+  report_owner: null
+  approval_reference: null

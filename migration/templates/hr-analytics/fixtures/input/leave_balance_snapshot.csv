@@ -1,0 +1,5 @@
+snapshot_month_end,employee_key,leave_type,current_accrued_hours,hours_taken_ytd,hours_scheduled,hours_remaining
+2032-09-30,MOCK-WORKER-71,ANNUAL,95.00,18.00,7.00,70.00
+2032-10-31,MOCK-WORKER-71,ANNUAL,103.00,23.00,7.00,73.00
+2032-10-31,MOCK-WORKER-82,ANNUAL,57.00,17.00,6.00,34.00
+2032-10-31,MOCK-WORKER-71,PERSONAL,21.00,5.00,0.00,16.00

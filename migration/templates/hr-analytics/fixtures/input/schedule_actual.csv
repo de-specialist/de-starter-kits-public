@@ -1,0 +1,3 @@
+employee_key,work_date,scheduled_hours,actual_hours
+MOCK-WORKER-71,2032-10-12,7.00,9.00
+MOCK-WORKER-82,2032-10-13,5.00,2.00

@@ -1,0 +1,281 @@
+version: 1
+model_name: HR Analyst Detail (logical contract)
+status: draft_for_business_validation
+audience:
+  - hr_analysts
+history: monthly_snapshots
+detail_level: separate_aggregate_and_restricted_detail_models
+dimensions:
+  - name: DimDate
+    roles:
+      - snapshot_date
+      - employee_start_date
+      - termination_date
+      - requisition_created_date
+      - work_date
+      - entry_date
+  - name: DimEmployeePeriod
+    key: employee_key x snapshot_month_end
+    published_attributes:
+      - employee_status
+      - employee_type
+      - job
+      - organization_key
+      - tenure_band
+    restricted_or_unapproved_attributes: excluded
+  - name: DimOrganization
+    attributes:
+      - company
+      - location
+      - department
+  - name: DimJob
+    attributes:
+      - job_title
+      - job_category
+      - employee_type
+  - name: DimRequisition
+    attributes:
+      - requisition_status
+      - number_of_openings
+  - name: DimTimeEntry
+    attributes:
+      - entry_type_code
+      - entry_category
+  - name: DimLeaveType
+    attributes:
+      - leave_type
+facts:
+  - name: WorkforceSnapshot
+    semantic_table: FactWorkforceSnapshot
+    grain: employee_key x month_end
+    measures:
+      - headcount_as_of_snapshot
+    model_name: fact_workforce_snapshot
+    required_columns:
+      - EmployeeKey
+      - SnapshotMonthEnd
+      - WorkerStatus
+  - name: RequisitionSnapshot
+    semantic_table: FactRequisitionSnapshot
+    grain: requisition_key x month_end
+    measures:
+      - open_requisitions
+      - open_positions
+      - applicants
+      - hired_applicants
+    model_name: fact_requisition_snapshot
+    required_columns:
+      - RequisitionKey
+      - SnapshotMonthEnd
+      - RequisitionStatus
+      - NumberOfOpenings
+      - ApplicantCount
+      - HiredApplicantCount
+  - name: HireEvent
+    semantic_table: FactHireEvent
+    grain: one resolved employment_episode_key; employee_key x approved start date only after correction resolution
+    measures:
+      - hire_count
+      - time_to_hire_days
+    model_name: fact_hire
+    required_columns:
+      - EmployeeStartDate
+      - RequisitionCreatedDate
+  - name: TerminationEvent
+    semantic_table: FactTerminationEvent
+    grain: one resolved termination_event_key after repeated exports and corrected-date reconciliation
+    measures:
+      - termination_count
+    model_name: fact_termination
+    required_columns:
+      - TerminationDate
+  - name: ScheduleActual
+    semantic_table: FactScheduleActual
+    grain: employee_key x work_date after source-record and overlapping-export reconciliation
+    measures:
+      - scheduled_hours
+      - actual_hours
+      - hours_variance
+    model_name: fact_schedule_actual
+    required_columns:
+      - WorkDate
+      - ScheduledHours
+      - ActualHours
+  - name: TimeEntry
+    semantic_table: FactTimeEntry
+    grain: employee_key x entry_date x entry_type_code after source-record and overlapping-export reconciliation
+    measures:
+      - absence_hours
+    model_name: fact_time_entry
+    required_columns:
+      - EntryDate
+      - Hours
+      - EntryTypeCode
+      - ReportedDate
+      - EntryCategory
+  - name: LeaveBalanceSnapshot
+    semantic_table: FactLeaveBalanceSnapshot
+    grain: employee_key x leave_type x month_end
+    measures:
+      - current_accrued_hours
+      - hours_taken_ytd
+      - hours_scheduled
+      - hours_remaining
+    model_name: fact_leave_balance_snapshot
+    required_columns:
+      - SnapshotMonthEnd
+      - CurrentAccruedHours
+      - HoursTakenYTD
+      - HoursScheduled
+      - HoursRemaining
+consumption_models:
+  leadership:
+    model_name: HR Leadership Aggregates
+    source_tables:
+      - FactLeadershipMonthlyKPI
+    grain: approved_period x approved_organization_level x approved_dimension_values
+    employee_keys_or_employee_grain_facts: prohibited
+    exact_employee_event_dates: prohibited
+    build_permission: prohibited_for_business_consumers
+    release_gate: BLOCKED until primary and complementary suppression, totals/differencing/export controls and access
+      isolation are implemented and independently tested
+    allowed_dimensions:
+      - MonthEnd
+      - owner_approved_coarse_organization_and_categories
+    relationships: Separate month-grain calendar to aggregate period only; no relationships to analyst dimensions
+      or facts
+    columns:
+      - MonthEnd
+      - ApprovedOrganizationGroup
+      - ApprovedCategory
+      - Headcount
+      - HireCount
+      - TerminationCount
+      - AverageOpeningClosingHeadcount
+      - DisclosureReleaseStatus
+    aggregate_build: Upstream release process must remove/suppress unsafe cells and complementary totals before
+      this model can access them. DisclosureReleaseStatus is evidence only, not a DAX security filter.
+  hr_analyst:
+    model_name: HR Analyst Detail
+    source_tables:
+      - FactWorkforceSnapshot
+      - FactHireEvent
+      - FactTerminationEvent
+      - FactScheduleActual
+      - FactTimeEntry
+      - FactLeaveBalanceSnapshot
+      - FactRequisitionSnapshot
+      - FactSnapshotManifest
+    grain: source_fact_grains
+    employee_key: pseudonymous_only
+    access: dedicated_approved_hr_analyst_group
+    exact_dates: restricted_to_approved_hr_analysts
+    release_gate: privacy_and_access_review
+relationships:
+  - from: DimDate.Date
+    to: FactWorkforceSnapshot.SnapshotMonthEnd
+    active: true
+  - from: DimDate.Date
+    to: FactRequisitionSnapshot.SnapshotMonthEnd
+    active: true
+  - from: DimDate.Date
+    to: FactHireEvent.EmployeeStartDate
+    active: true
+    audience: hr_analyst
+  - from: DimDate.Date
+    to: FactTerminationEvent.TerminationDate
+    active: true
+    audience: hr_analyst
+  - from: DimDate.Date
+    to: FactScheduleActual.WorkDate
+    active: true
+    audience: hr_analyst
+  - from: DimDate.Date
+    to: FactTimeEntry.EntryDate
+    active: true
+    audience: hr_analyst
+  - from: DimDate.Date
+    to: FactLeaveBalanceSnapshot.SnapshotMonthEnd
+    active: true
+measures:
+  open_requisitions:
+    definition: distinct requisitions with open status at selected snapshot
+    aggregation: distinct_count
+  open_positions:
+    definition: sum of openings on open requisitions at selected snapshot
+    aggregation: sum
+  applicants:
+    definition: sum of applicant_count at selected requisition snapshot
+    aggregation: sum
+  hired_applicants:
+    definition: sum of hired_applicant_count at selected requisition snapshot
+    aggregation: sum
+  headcount_as_of_snapshot:
+    definition: distinct employee_key where mapped status is active, evaluated at selected month-end snapshot
+    aggregation: distinct_count
+  hire_count:
+    definition: count of accepted hire events with employee start date in selected period
+    aggregation: count
+  termination_count:
+    definition: count of termination events by termination date in selected period
+    aggregation: count
+  turnover_rate:
+    definition: termination_count / ((active_headcount_at_period_start + active_headcount_at_period_end) / 2)
+    period: month
+    monthly_snapshot_proxy: previous_month_end_snapshot_for_period_start
+    annualized: false
+    zero_denominator: null
+  time_to_hire_days:
+    definition: employee_start_date - requisition_created_date for accepted hires
+    default_aggregation: median
+    negative_or_missing_dates: negative duration fails; missing requisition or requisition-created date yields null
+      duration; missing approved start date quarantines event
+  hours_variance:
+    definition: actual_hours - scheduled_hours
+    aggregation: sum
+  absence_hours:
+    definition: sum of approved absence categories only
+    status: blocked_until_entry_type_code_mapping_is_approved
+  absence_rate:
+    definition: approved_absence_hours / scheduled_hours
+    status: blocked_until_absence_type_map_grain_and_report_formula_approved
+    zero_denominator: null
+  leave_hours_remaining:
+    definition: sum of hours_remaining for ANNUAL only at one complete month-end snapshot; units require approval
+    aggregation: sum
+metric_validation:
+  status: pending_report_level_reconciliation
+  rules:
+    turnover_rate: draft_example_formula_but_requires_complete_adjacent_month_snapshots
+    time_to_hire_days: draft_example_formula; hires_without_requisition_remain_hires_with_blank_duration
+    hours_variance: actual_minus_scheduled
+    absence_hours: blocked_until_entry_type_code_map_and_proposed_output_are_validated
+    absence_rate: blocked_until_numerator_denominator_grain_and_report_formula_are_validated
+  multi_period_selection: require_one_snapshot_month_for_snapshot_measures
+  incomplete_snapshot: fail_or_return_blank; never_infer_completeness_from_nonzero_row_count
+security:
+  hr_leadership_model: preaggregated_tables_only; no_employee_key_or_employee_grain_facts_or_exact_employee_event_dates
+  hr_analyst_detail_model: pseudonymous_employee_key_only; restricted_to_approved_hr_analyst_group
+  pseudonymous_keys_are_still_personal_data: true
+  small_group_suppression: not_implemented; publication_blocked_until_owner_approved_policy_and_tested_suppression
+  complementary_suppression: not_implemented; publication_blocked_until_review
+  direct_identifiers: excluded
+  classification_sensitive_values: owner_approval_and_tested_disclosure_controls_required
+  workspace_edit_roles_for_consumers: prohibited
+  rls: add_only_if_hr_population_scoping_is_required
+  restricted_or_unapproved_attributes: excluded
+support_tables:
+  - name: FactSnapshotManifest
+    grain: source_name x snapshot_month_end (one validated selected complete extract)
+    required_columns:
+      - SourceName
+      - SnapshotMonthEnd
+      - IsComplete
+    relationship: DimDate.Date -> FactSnapshotManifest.SnapshotMonthEnd; single direction
+    source: validated export manifest; select one approved extract per source/period; reject ambiguous competing
+      versions
+snapshot_selection: Exactly one month; remove daily filters and evaluate that month-end. No implicit latest-period
+  selection. Check source-specific manifest for every snapshot measure.
+historical_attributes: Monthly employee attributes support snapshot dates only. Do not infer daily effective history
+  or attribute events to current organization; event organization mapping remains blocked pending effective-dated
+  evidence.

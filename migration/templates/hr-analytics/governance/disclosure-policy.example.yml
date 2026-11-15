@@ -1,0 +1,13 @@
+version: 1
+status: blocked_until_policy_approved
+minimum_group_size: null
+primary_suppression: required
+complementary_suppression: required
+dimensions_in_scope: []
+approved_by: null
+approval_reference: null
+release_gate:
+  fail_closed_when_threshold_missing: true
+  test_differencing_across_periods: true
+  test_totals_and_subtotals: true
+  publish_only_preaggregated_outputs: true

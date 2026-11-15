@@ -1,6 +1,6 @@
 # Scaffolder input contract (item 145)
 
-**Status: proposal. No item-145 generator exists.** This document defines which existing migration evidence a future Silver starter-model generator may trust, how that evidence must bind together, and the fixed refusal reason codes. It covers inputs only. Generated-file layout, edit preservation, and naming are decided in `scaffolder-contract-proposal.md`; this document does not change those decisions.
+**Status: a plan-only item-145 scaffolder exists; write mode is not implemented.** This document defines which existing migration evidence the Silver starter-model scaffolder may trust, how that evidence must bind together, and the fixed refusal reason codes. It covers inputs only. Generated-file layout, edit preservation, and naming remain proposals; plan output never writes files.
 
 The baseline migration contract was read at commit `3bdceb6`; the optional source-binding addition was reviewed at commit `161e2d8` (PR #7). Nothing was executed against a source or warehouse. "Present" means the loader writes the field when supplied; optional fields may be absent in legacy evidence, and the generator must not infer them.
 

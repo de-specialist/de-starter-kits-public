@@ -1,0 +1,238 @@
+// Draft DAX patterns for model engineering only. Names and relationships must
+// match the implemented model. These expressions are not a security boundary.
+// Do not publish an employee-grain model to HR leadership.
+
+// Snapshot measures require exactly one approved snapshot month. A snapshot
+// manifest/completeness test must establish completeness before publication.
+Headcount (Analyst) :=
+VAR MonthEnd = SELECTEDVALUE ( DimDate[MonthEnd] )
+VAR Complete =
+    CALCULATE (
+        SELECTEDVALUE ( FactSnapshotManifest[IsComplete], FALSE () ),
+        REMOVEFILTERS ( DimDate ), DimDate[Date] = MonthEnd,
+        FactSnapshotManifest[SourceName] = "employee_snapshot"
+    )
+RETURN
+    IF (
+        HASONEVALUE ( DimDate[MonthEnd] ) && Complete,
+        CALCULATE (
+            COALESCE ( DISTINCTCOUNT ( FactWorkforceSnapshot[EmployeeKey] ), 0 ),
+            REMOVEFILTERS ( DimDate ), DimDate[Date] = MonthEnd,
+            FactWorkforceSnapshot[WorkerStatus] = "active"
+        )
+    )
+
+Hires (Analyst) :=
+COALESCE ( COUNTROWS ( FactHireEvent ), 0 )
+
+Terminations (Analyst) :=
+COALESCE ( COUNTROWS ( FactTerminationEvent ), 0 )
+
+// Monthly rate is blank if either adjacent month-end snapshot is absent or
+// incomplete. FactSnapshotManifest[IsComplete] must be populated from a
+// validated export manifest, not inferred from a nonzero fact row count.
+Monthly Turnover Rate (Analyst) :=
+VAR IsSingleMonth = HASONEVALUE ( DimDate[MonthEnd] )
+VAR CurrentMonthEnd = SELECTEDVALUE ( DimDate[MonthEnd] )
+VAR PreviousMonthEnd = EOMONTH ( CurrentMonthEnd, -1 )
+VAR CurrentComplete =
+    CALCULATE (
+        SELECTEDVALUE ( FactSnapshotManifest[IsComplete], FALSE () ),
+        REMOVEFILTERS ( DimDate ),
+        DimDate[Date] = CurrentMonthEnd,
+        FactSnapshotManifest[SourceName] = "employee_snapshot"
+    )
+VAR PreviousComplete =
+    CALCULATE (
+        SELECTEDVALUE ( FactSnapshotManifest[IsComplete], FALSE () ),
+        REMOVEFILTERS ( DimDate ),
+        DimDate[Date] = PreviousMonthEnd,
+        FactSnapshotManifest[SourceName] = "employee_snapshot"
+    )
+VAR OpeningHeadcount =
+    CALCULATE ( [Headcount (Analyst)], REMOVEFILTERS ( DimDate ), DimDate[Date] = PreviousMonthEnd )
+VAR ClosingHeadcount =
+    CALCULATE ( [Headcount (Analyst)], REMOVEFILTERS ( DimDate ), DimDate[Date] = CurrentMonthEnd )
+VAR PeriodTerminations =
+    CALCULATE ( [Terminations (Analyst)], REMOVEFILTERS ( DimDate ), DimDate[Date] > PreviousMonthEnd, DimDate[Date] <= CurrentMonthEnd )
+RETURN
+    IF (
+        IsSingleMonth && CurrentComplete && PreviousComplete,
+        DIVIDE ( PeriodTerminations, DIVIDE ( OpeningHeadcount + ClosingHeadcount, 2 ) )
+    )
+
+// Detail measures intended only for the separately permissioned analyst model.
+Median Time To Hire (Days) :=
+MEDIANX (
+    FILTER (
+        FactHireEvent,
+        NOT ISBLANK ( FactHireEvent[EmployeeStartDate] )
+            && NOT ISBLANK ( FactHireEvent[RequisitionCreatedDate] )
+            && FactHireEvent[EmployeeStartDate] >= FactHireEvent[RequisitionCreatedDate]
+    ),
+    DATEDIFF ( FactHireEvent[RequisitionCreatedDate], FactHireEvent[EmployeeStartDate], DAY )
+)
+
+Scheduled Hours (Analyst) :=
+SUM ( FactScheduleActual[ScheduledHours] )
+
+Actual Hours (Analyst) :=
+SUM ( FactScheduleActual[ActualHours] )
+
+Hours Variance (Analyst) :=
+[Actual Hours (Analyst)] - [Scheduled Hours (Analyst)]
+
+// Approved absence hours/rate deliberately omitted: blocked until absence type map,
+// denominator grain and report definition are approved.
+
+Annual Leave Hours Remaining (Analyst) :=
+VAR MonthEnd = SELECTEDVALUE ( DimDate[MonthEnd] )
+VAR Complete =
+    CALCULATE (
+        SELECTEDVALUE ( FactSnapshotManifest[IsComplete], FALSE () ),
+        REMOVEFILTERS ( DimDate ), DimDate[Date] = MonthEnd,
+        FactSnapshotManifest[SourceName] = "leave_balance_snapshot"
+    )
+RETURN
+    IF (
+        HASONEVALUE ( DimDate[MonthEnd] ) && Complete,
+        CALCULATE (
+            COALESCE ( SUM ( FactLeaveBalanceSnapshot[HoursRemaining] ), 0 ),
+            REMOVEFILTERS ( DimDate ), DimDate[Date] = MonthEnd,
+            KEEPFILTERS ( DimLeaveType[LeaveType] = "ANNUAL" )
+        )
+    )
+
+// Do not add a suppression helper here. Counting a dimension would not
+// reliably respect fact filters with single-direction relationships, and a
+// measure alone cannot guarantee primary/complementary disclosure control.
+
+Open Requisitions (Analyst) :=
+VAR MonthEnd = SELECTEDVALUE ( DimDate[MonthEnd] )
+VAR Complete =
+    CALCULATE (
+        SELECTEDVALUE ( FactSnapshotManifest[IsComplete], FALSE () ),
+        REMOVEFILTERS ( DimDate ), DimDate[Date] = MonthEnd,
+        FactSnapshotManifest[SourceName] = "requisition_snapshot"
+    )
+RETURN
+    IF (
+        HASONEVALUE ( DimDate[MonthEnd] ) && Complete,
+        CALCULATE (
+            COALESCE ( DISTINCTCOUNT ( FactRequisitionSnapshot[RequisitionKey] ), 0 ),
+            REMOVEFILTERS ( DimDate ), DimDate[Date] = MonthEnd,
+            KEEPFILTERS ( FactRequisitionSnapshot[RequisitionStatus] = "open" )
+        )
+    )
+
+Open Positions (Analyst) :=
+VAR MonthEnd = SELECTEDVALUE ( DimDate[MonthEnd] )
+VAR Complete =
+    CALCULATE (
+        SELECTEDVALUE ( FactSnapshotManifest[IsComplete], FALSE () ),
+        REMOVEFILTERS ( DimDate ), DimDate[Date] = MonthEnd,
+        FactSnapshotManifest[SourceName] = "requisition_snapshot"
+    )
+RETURN
+    IF (
+        HASONEVALUE ( DimDate[MonthEnd] ) && Complete,
+        CALCULATE (
+            COALESCE ( SUM ( FactRequisitionSnapshot[NumberOfOpenings] ), 0 ),
+            REMOVEFILTERS ( DimDate ), DimDate[Date] = MonthEnd,
+            KEEPFILTERS ( FactRequisitionSnapshot[RequisitionStatus] = "open" )
+        )
+    )
+
+Applicants (Analyst) :=
+VAR MonthEnd = SELECTEDVALUE ( DimDate[MonthEnd] )
+VAR Complete =
+    CALCULATE (
+        SELECTEDVALUE ( FactSnapshotManifest[IsComplete], FALSE () ),
+        REMOVEFILTERS ( DimDate ), DimDate[Date] = MonthEnd,
+        FactSnapshotManifest[SourceName] = "requisition_snapshot"
+    )
+RETURN
+    IF (
+        HASONEVALUE ( DimDate[MonthEnd] ) && Complete,
+        CALCULATE (
+            COALESCE ( SUM ( FactRequisitionSnapshot[ApplicantCount] ), 0 ),
+            REMOVEFILTERS ( DimDate ), DimDate[Date] = MonthEnd
+        )
+    )
+
+Hired Applicants (Analyst) :=
+VAR MonthEnd = SELECTEDVALUE ( DimDate[MonthEnd] )
+VAR Complete =
+    CALCULATE (
+        SELECTEDVALUE ( FactSnapshotManifest[IsComplete], FALSE () ),
+        REMOVEFILTERS ( DimDate ), DimDate[Date] = MonthEnd,
+        FactSnapshotManifest[SourceName] = "requisition_snapshot"
+    )
+RETURN
+    IF (
+        HASONEVALUE ( DimDate[MonthEnd] ) && Complete,
+        CALCULATE (
+            COALESCE ( SUM ( FactRequisitionSnapshot[HiredApplicantCount] ), 0 ),
+            REMOVEFILTERS ( DimDate ), DimDate[Date] = MonthEnd
+        )
+    )
+
+Absence Hours (Analyst) :=
+CALCULATE (
+    SUM ( FactTimeEntry[Hours] ),
+    KEEPFILTERS ( FactTimeEntry[EntryCategory] = "ABSENCE" )
+)
+
+Annual Leave Hours Accrued (Analyst) :=
+VAR MonthEnd = SELECTEDVALUE ( DimDate[MonthEnd] )
+VAR Complete =
+    CALCULATE (
+        SELECTEDVALUE ( FactSnapshotManifest[IsComplete], FALSE () ),
+        REMOVEFILTERS ( DimDate ), DimDate[Date] = MonthEnd,
+        FactSnapshotManifest[SourceName] = "leave_balance_snapshot"
+    )
+RETURN
+    IF (
+        HASONEVALUE ( DimDate[MonthEnd] ) && Complete,
+        CALCULATE (
+            COALESCE ( SUM ( FactLeaveBalanceSnapshot[CurrentAccruedHours] ), 0 ),
+            REMOVEFILTERS ( DimDate ), DimDate[Date] = MonthEnd,
+            KEEPFILTERS ( DimLeaveType[LeaveType] = "ANNUAL" )
+        )
+    )
+
+Annual Leave Hours Taken YTD (Analyst) :=
+VAR MonthEnd = SELECTEDVALUE ( DimDate[MonthEnd] )
+VAR Complete =
+    CALCULATE (
+        SELECTEDVALUE ( FactSnapshotManifest[IsComplete], FALSE () ),
+        REMOVEFILTERS ( DimDate ), DimDate[Date] = MonthEnd,
+        FactSnapshotManifest[SourceName] = "leave_balance_snapshot"
+    )
+RETURN
+    IF (
+        HASONEVALUE ( DimDate[MonthEnd] ) && Complete,
+        CALCULATE (
+            COALESCE ( SUM ( FactLeaveBalanceSnapshot[HoursTakenYTD] ), 0 ),
+            REMOVEFILTERS ( DimDate ), DimDate[Date] = MonthEnd,
+            KEEPFILTERS ( DimLeaveType[LeaveType] = "ANNUAL" )
+        )
+    )
+
+Annual Leave Hours Scheduled (Analyst) :=
+VAR MonthEnd = SELECTEDVALUE ( DimDate[MonthEnd] )
+VAR Complete =
+    CALCULATE (
+        SELECTEDVALUE ( FactSnapshotManifest[IsComplete], FALSE () ),
+        REMOVEFILTERS ( DimDate ), DimDate[Date] = MonthEnd,
+        FactSnapshotManifest[SourceName] = "leave_balance_snapshot"
+    )
+RETURN
+    IF (
+        HASONEVALUE ( DimDate[MonthEnd] ) && Complete,
+        CALCULATE (
+            COALESCE ( SUM ( FactLeaveBalanceSnapshot[HoursScheduled] ), 0 ),
+            REMOVEFILTERS ( DimDate ), DimDate[Date] = MonthEnd,
+            KEEPFILTERS ( DimLeaveType[LeaveType] = "ANNUAL" )
+        )
+    )

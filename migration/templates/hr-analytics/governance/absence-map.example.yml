@@ -1,0 +1,14 @@
+version: 1
+status: unapproved_template
+effective_from: null
+approved_by: null
+approval_reference: null
+mapping:
+  # Add source codes only after the data owner approves their meaning.
+  # Example shape: SOURCE_CODE: ABSENCE | OVERTIME | ORDINARY_TIME | PAID_LEAVE | EXCLUDE
+  SOURCE_CODE: UNMAPPED
+release_gate:
+  require_all_codes_mapped: true
+  require_denominator_definition: true
+  require_period_and_grain_validation: true
+  require_report_reconciliation: true

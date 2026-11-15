@@ -425,8 +425,8 @@ def build_manifest(plan: ScaffoldPlan, rendered: Mapping[str, str]) -> str:
 def render_outputs(plan: ScaffoldPlan, renderer: Renderer) -> dict[str, str]:
     """Every file a final generation would publish: `{project-relative path: text}`, sorted.
 
-    In memory only. The future publisher (atomic no-replace, contract 6.2) stages exactly
-    this mapping; `tuple(result) == plan.planned_files`.
+    In memory only. `scaffold.publisher` stages exactly this mapping (create-only, atomic
+    no-replace); `tuple(result) == plan.planned_files`.
     """
     rendered = render_plan(plan, renderer)
     files = {f"{plan.output_dir}/{name}": text for name, text in rendered.items()}

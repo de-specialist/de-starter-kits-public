@@ -9,6 +9,8 @@ concurrency:
 on:
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
+  push:
+    branches: [main]
   release:
     types: [published]
   schedule:
@@ -25,6 +27,8 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
       - name: Install pinned actionlint
         shell: bash
         run: |
@@ -48,6 +52,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
+          persist-credentials: false
           fetch-depth: 0
       # The default pull request checkout is the merge commit, whose parents are
       # the base and head commits, so the PR range is fully present.
@@ -89,6 +94,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
+          persist-credentials: false
           fetch-depth: 2
       # On pull requests the smoke check only matters when the pinned scanner,
       # its fixtures or this workflow change; HEAD^1 is the base of the merge commit.

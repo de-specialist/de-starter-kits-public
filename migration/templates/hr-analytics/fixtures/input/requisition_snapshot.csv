@@ -1,0 +1,4 @@
+snapshot_month_end,requisition_key,job_title,requisition_status,number_of_openings,applicant_count,hired_applicant_count,requisition_created_date,closed_date,department
+2032-09-30,MOCK-REQ-41,Mock Technician,open,1,7,0,2032-09-17,,Mock Assembly
+2032-10-31,MOCK-REQ-41,Mock Technician,filled,1,7,1,2032-09-17,2032-10-08,Mock Assembly
+2032-10-31,MOCK-REQ-52,Mock Planner,open,4,6,0,2032-10-23,,Mock Assembly

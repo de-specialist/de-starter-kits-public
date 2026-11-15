@@ -12,6 +12,7 @@ from pathlib import Path
 REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 MIGRATION_FILES = (
     "run_migration.py",
+    "postgres_snapshot_guard.py",
     "reconcile_bronze.py",
     "acceptance_report.py",
     "evidence_index.py",

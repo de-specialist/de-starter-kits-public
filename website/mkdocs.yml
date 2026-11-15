@@ -126,7 +126,9 @@ nav:
       - Source change contract: docs/source-change-contract.md
       - Source snapshot contract: docs/source-snapshot-contract.md
       - Source connector selection: docs/source-connector-selection.md
+      - Source adaptation walkthrough: docs/source-adaptation-walkthrough.md
       - Provider APIs: docs/provider-apis.md
+      - Next enhancements: docs/next-enhancements.md
   - Release:
       - Changelog: CHANGELOG.md
   - Contributing: CONTRIBUTING.md

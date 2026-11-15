@@ -46,7 +46,7 @@ decision or a warehouse acceptance run.
 4. **Migration recovery and source snapshots.** Complete the PostgreSQL
    snapshot-guard integration and define operator recovery for interrupted
    replacement. The guard is wired into the loader, dlt 1.32.0 callback support
-   is verified, and 371 migration offline tests pass. Live PostgreSQL behavior,
+   is verified, and 402 migration offline tests pass. Live PostgreSQL behavior,
    and BigQuery/Snowflake interruption semantics remain unverified. The private
    counterpart now has an append-only operator-attested retry resolution path;
    its evidence references are not independently verified destination proof.
@@ -139,14 +139,15 @@ acceptance.
 
 | Items | Status | Evidence or remaining gate |
 | --- | --- | --- |
-| 1–3 | Owner-dependent | No buyer interviews, paid pilot, or independent install records are available in this repository. |
-| 4, 9 | Owner-dependent | No approved warehouse acceptance or Gold parity evidence is recorded. |
+| 1–3 | Owner-dependent | A product owner must recruit five qualified buyers, approve the commercial terms for one offer before presenting it, and arrange two independent clean-checkout users. No interview, buying-action, or independent-install records are available here. |
+| 4, 9 | Cloud-owner dependent | A warehouse owner must approve isolated BigQuery and Snowflake targets, access, spend limits, and private evidence retention; then run the edition builds and compare migration Gold output with the full-refresh baselines. No such approval or results are recorded here. |
 | 5–8, 10 | Offline implementation present; live acceptance pending | Contracts, checkpoints, recovery guards, timestamp fixtures, summaries, and offline tests are present; adapter and destination semantics remain unverified. |
-| 11 | Approval-gated | Synthetic HR assets and disclosure examples exist; owner-approved suppression policy and independent disclosure testing are still required before publication. |
-| 12–13 | Partially implemented | Scaffolding, first-run guidance, and credential-free checks exist; clean-checkout observations for both editions are not recorded. |
-| 14–15 | Incomplete | No published sample dashboard or completed source-adaptation walkthrough is evidenced. |
-| 16 | Owner-dependent | Support and compatibility promises need an explicit product decision. |
-| 17 | Implemented; release record pending | Archive construction and validation tooling exist; no signed release acceptance record is included here. |
-| 18 | Implemented; ongoing review required | Dependency review automation is configured; maintainers still need to review and accept update batches. |
+| 11 | Approval-gated | Synthetic HR assets and disclosure examples exist; a data owner must approve the disclosure policy and suppression threshold, then an independent reviewer must test intersecting filters, repeated releases, exports, and permissions before publication. |
+| 12–13 | Local implementation verified; independent installs pending | Clean generated workspaces for both editions passed first-run preflight and credential-free dbt parsing in temporary directories; independent user install observations are not recorded. |
+| 14 | Cloud-owner dependent | The owner must approve a reporting account, access to the agreed marts, refresh/query cost, and sharing boundary before creating and publishing the four-view sample. No report or acceptance record exists here. |
+| 15 | Offline implementation present; independent validation pending | Synthetic source fixtures, a canonical mapping, a grain/update/delete walkthrough, and a local DuckDB dry run are present; an independent source owner and approved warehouse are still needed to validate real semantics. |
+| 16 | Product-owner decision | The owner must set supported versions, response boundaries, update cadence, and compatibility-change notice before any external support promise is made. |
+| 17 | Implemented; release approval pending | Archive construction, checksum/path checks, and secret scanning pass. The owner must inspect the exact release archives and record acceptance before publishing. |
+| 18 | Automation configured; maintainer assignment pending | Dependency update automation is configured. A maintainer must own the review cadence, compatibility decisions, lock regeneration, and recorded approvals. |
 | 19 | Implemented | The operator incident runbook is linked from the README and documentation navigation. |
 | 20 | Pending evidence | Revisit priorities after buyer interviews and pilots; no such decision record is available here. |

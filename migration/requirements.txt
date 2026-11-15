@@ -1,2 +1,2 @@
 dlt[bigquery,duckdb,snowflake,sql_database]==1.32.0
-psycopg[binary]>=3.2,<4.0
+psycopg[binary]>=3.3.8,<4.0

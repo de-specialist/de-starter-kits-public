@@ -35,6 +35,7 @@ class PublicSnapshotTests(unittest.TestCase):
         private = (
             ".env", ".local/target.json", ".agents/task-queue.json",
             ".claude/session.json", ".codex/session.json", "archives/hr.zip",
+            ".codex-attachments/a/b.bin",
             "private/mapping.json", "local-config/warehouse.toml",
             "editions/Bigquery/.dbt/profiles.yml", "example.tfvars",
             "example.tfstate", "credentials.pem", "warehouse.duckdb",

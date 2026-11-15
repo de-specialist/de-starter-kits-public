@@ -46,7 +46,7 @@ decision or a warehouse acceptance run.
 4. **Migration recovery and source snapshots.** Complete the PostgreSQL
    snapshot-guard integration and define operator recovery for interrupted
    replacement. The guard is wired into the loader, dlt 1.32.0 callback support
-   is verified, and 371 migration offline tests pass. Live PostgreSQL behavior,
+   is verified, and 402 migration offline tests pass. Live PostgreSQL behavior,
    and BigQuery/Snowflake interruption semantics remain unverified. The private
    counterpart now has an append-only operator-attested retry resolution path;
    its evidence references are not independently verified destination proof.
@@ -143,7 +143,7 @@ acceptance.
 | 4, 9 | Owner-dependent | No approved warehouse acceptance or Gold parity evidence is recorded. |
 | 5–8, 10 | Offline implementation present; live acceptance pending | Contracts, checkpoints, recovery guards, timestamp fixtures, summaries, and offline tests are present; adapter and destination semantics remain unverified. |
 | 11 | Approval-gated | Synthetic HR assets and disclosure examples exist; owner-approved suppression policy and independent disclosure testing are still required before publication. |
-| 12–13 | Partially implemented | Scaffolding, first-run guidance, and credential-free checks exist; clean-checkout observations for both editions are not recorded. |
+| 12–13 | Local implementation verified; independent installs pending | Clean generated workspaces for both editions passed first-run preflight and credential-free dbt parsing in temporary directories; independent user install observations are not recorded. |
 | 14 | Incomplete | No published sample dashboard or report account is available in the evidence record. |
 | 15 | Offline implementation present; independent validation pending | Synthetic source fixtures, a canonical mapping, a grain/update/delete walkthrough, and a local DuckDB dry run are present; independent and warehouse acceptance remain outstanding. |
 | 16 | Owner-dependent | Support and compatibility promises need an explicit product decision. |

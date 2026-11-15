@@ -11,6 +11,10 @@ This optional extension copies selected source data to a dedicated Bronze namesp
 
 ## Generic template catalog
 
+For a worked example that maps renamed synthetic exports into the canonical
+retail fields and explains grain, updates, deletes, and validation, see the
+[source adaptation walkthrough](../docs/source-adaptation-walkthrough.md).
+
 - [snapshot-contract](https://github.com/de-specialist/de-starter-kits-public/blob/main/migration/templates/snapshot-contract/README.md): Defines delivery completeness, correction, duplicate, and empty-period rules for full snapshots; does not enforce them.
 - [scd2-history](https://github.com/de-specialist/de-starter-kits-public/blob/main/migration/templates/scd2-history/README.md): Builds type 2 entity history from complete snapshots or changes. Snapshot history records observed states and cannot recover changes between observations.
 - [incremental-ingest](https://github.com/de-specialist/de-starter-kits-public/blob/main/migration/templates/incremental-ingest/README.md): A local CSV-to-SQLite reference runner with watermarks and late-arrival handling, not a warehouse connector or CDC. Hard deletes are not captured.

@@ -144,7 +144,8 @@ acceptance.
 | 5–8, 10 | Offline implementation present; live acceptance pending | Contracts, checkpoints, recovery guards, timestamp fixtures, summaries, and offline tests are present; adapter and destination semantics remain unverified. |
 | 11 | Approval-gated | Synthetic HR assets and disclosure examples exist; owner-approved suppression policy and independent disclosure testing are still required before publication. |
 | 12–13 | Partially implemented | Scaffolding, first-run guidance, and credential-free checks exist; clean-checkout observations for both editions are not recorded. |
-| 14–15 | Incomplete | No published sample dashboard or completed source-adaptation walkthrough is evidenced. |
+| 14 | Incomplete | No published sample dashboard or report account is available in the evidence record. |
+| 15 | Offline implementation present; independent validation pending | Synthetic source fixtures, a canonical mapping, a grain/update/delete walkthrough, and a local DuckDB dry run are present; independent and warehouse acceptance remain outstanding. |
 | 16 | Owner-dependent | Support and compatibility promises need an explicit product decision. |
 | 17 | Implemented; release record pending | Archive construction and validation tooling exist; no signed release acceptance record is included here. |
 | 18 | Implemented; ongoing review required | Dependency review automation is configured; maintainers still need to review and accept update batches. |

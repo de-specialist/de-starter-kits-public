@@ -1,0 +1,4 @@
+line_id,order_number,sku,units,item_price
+MOCK-L-001,MOCK-O-001,MOCK-P-001,2,18.50
+MOCK-L-002,MOCK-O-001,MOCK-P-002,1,6.00
+MOCK-L-003,MOCK-O-002,MOCK-P-002,1,24.00
